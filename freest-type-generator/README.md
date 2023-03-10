@@ -1,0 +1,1 @@
+# freest-type-generator
