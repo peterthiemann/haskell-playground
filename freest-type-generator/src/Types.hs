@@ -55,6 +55,9 @@ data Type =
   | TyEnd { tyDirection :: Direction }
   | TyDual { tyBody :: Type }
   deriving (Eq, Ord, Show)
+
+data Module = Module [Protocol] [Type]
+
   
 namedProtocol :: Protocol -> (Name, Protocol)
 namedProtocol p = (prName p, p)

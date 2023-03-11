@@ -3,7 +3,8 @@ module Examples where
 import Text.PrettyPrint
 
 import Types
-import PrettyFreeST
+import PrettyFreeST as PF
+import qualified PrettyAlgSt as PA
 
 pSeq :: Protocol
 pSeq = Protocol "Seq" ["X", "Y"] [Constructor "Seq" [Argument Plus (TyVar "X"), Argument Plus (TyVar "Y")]]
@@ -42,7 +43,7 @@ t3 = TySession Input (TyApp "Rep" [tInt]) $ TyEnd Input
 t4 :: Type
 t4 = TySession Output (TyApp "Rep" [t3]) $ TyEnd Input
 
-ex4 = putStrLn $ pretty [pRep, pIntList] (prettyType t4)
+ex1_4 = putStrLn $ pretty $ prettyModule $ Module [pRep, pIntList] [t1,t2,t3,t4]
 
 -- now something mutually recursive
 
@@ -57,4 +58,9 @@ pForest = Protocol "Forest" [] [Constructor "Nil" [],
 tpTree :: Type
 tpTree = TySession Input (TyApp "Tree" []) $ TyEnd Input
 
-extpTree = putStrLn $ pretty [pTree, pForest] (prettyType tpTree)
+extpTree = putStrLn $ pretty $ prettyModule $ Module [pTree, pForest] [tpTree]
+
+-- same examples for AlgST
+
+exPA = putStrLn $ PA.pretty (PA.prettyModule $ Module [pRep, pIntList, pTree, pForest] [t1, t2, t3, t4, tpTree])
+

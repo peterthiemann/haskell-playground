@@ -8,7 +8,7 @@ import Text.PrettyPrint
 import Text.PrettyPrint.HughesPJClass
 import Types
 
-dot = text "."
+import PrettyShared 
 
 -- input is a list of protocol definitions and a type
 -- assume that the type is well-kinded etc
@@ -49,13 +49,6 @@ askDefs = fmap ppDefs R.ask
 askProtocols :: R.Reader (PPEnv) [Protocol]
 askProtocols = fmap ppProto R.ask
 
-prettyKind :: Kind -> Doc
-prettyKind = text . show
-
-prettyDirection :: Direction -> Doc
-prettyDirection Input = text "?"
-prettyDirection Output = text "!"
-
 prettyChoice :: Direction -> Doc
 prettyChoice Input = text "&"
 prettyChoice Output = text "+"
@@ -85,7 +78,7 @@ prettyType = \case
     pure $ parens (pf <+> comma <+> ps)
   TyPoly n k b -> do
     pb <- prettyType b
-    pure $ parens (text "forall" <+> text n <+> colon <+> prettyKind k <+> dot <+> pb)
+    pure $ parens (text "forall" <+> text n <+> colon <+> pPrint k <+> dot <+> pb)
   t@(TyApp n args) -> do
     mn <- lookupCache t    
     case mn of
@@ -108,7 +101,7 @@ prettyAsProtocol d = \case
     prettyProtocol d n args
   t -> do
     pt <- prettyType t
-    pure $ parens (prettyDirection d <+> pt)
+    pure $ parens (pPrint d <+> pt)
   
 prettyProtocol :: Direction -> Name -> [ Type ] -> R.Reader (PPEnv) Doc
 prettyProtocol d pn ts = do
@@ -143,7 +136,13 @@ prettyArgument d arg = do
         Minus -> dualDirection d
   prettyAsProtocol d' (argType arg)
 
-pretty :: [Protocol] -> R.Reader PPEnv Doc -> String
-pretty ps reader =
-  let init = PPENV [] ps M.empty 0 in
+prettyModule :: Module -> R.Reader PPEnv Doc
+prettyModule (Module ps ts) = do
+  pts <- R.local (\ ppenv -> ppenv { ppProto = ps }) $ mapM prettyType ts
+  pure (vcat pts)
+
+
+pretty :: R.Reader PPEnv Doc -> String
+pretty reader =
+  let init = PPENV [] [] M.empty 0 in
   render (R.runReader reader init)
