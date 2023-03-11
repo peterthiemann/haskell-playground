@@ -96,7 +96,7 @@ prettySession = \case
     pure $ parens (pdt <+> semi <+> ps)
   TyEnd d -> pure $ text "Skip"
   TyDual b -> do
-    pb <- prettyType b
+    pb <- prettySession b
     pure $ parens (text "dualof" <+> pb)
     
 

@@ -20,6 +20,26 @@ data Direction = Input | Output
 data Kind = SL | SU | TL | TU | ML | MU
   deriving (Eq, Ord, Show, Bounded, Enum)
 
+subkind :: Kind -> Kind -> Bool
+subkind SL SL = True
+subkind SL ML = True
+subkind SL TL = True
+subkind SU SU = True
+subkind SU SL = True
+subkind SU TL = True
+subkind SU TU = True
+subkind SU MU = True
+subkind TL TL = True
+subkind TU TU = True
+subkind TU TL = True
+subkind ML ML = True
+subkind MU MU = True
+subkind MU ML = True
+subkind ML TL = True
+subkind MU TL = True
+subkind MU TU = True
+subkind _  _  = False
+
 data Protocol =
   Protocol { prName :: Name
            , prParameters :: [Param]
@@ -53,7 +73,7 @@ data TySession =
               , tyCont :: TySession
               }
   | TyEnd  { tyDirection :: Direction }
-  | TyDual { seBody :: Type }
+  | TyDual { seBody :: TySession }
   deriving (Eq, Ord, Show)
 
 data Type =
