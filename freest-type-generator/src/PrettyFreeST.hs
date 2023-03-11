@@ -68,17 +68,18 @@ prettyChoice :: Direction -> Doc
 prettyChoice Input = text "&"
 prettyChoice Output = text "+"
 
--- prettyTyProto :: TyProto -> R.Reader PPEnv Doc
--- prettyTyProto = \case
---   TyType t ->
---     prettyType t
---   t@(TyApp n args) -> do
---     mn <- lookupCache t    
---     case mn of
---       Nothing ->
---         pure $ text "Skip" <+> braces (text ("- BAD PROTOCOL OCCURRENCE " ++ fromName n ++ " -"))
---       Just png ->
---         pure $ pName png
+-- correct?
+prettyTyProto :: TyProto -> R.Reader PPEnv Doc
+prettyTyProto = \case
+  TyType t ->
+    prettyType t
+  t@(TyApp n args) -> do
+    mn <- lookupCache t    
+    case mn of
+      Nothing ->
+        pure $ text "Skip" <+> braces (text ("- BAD PROTOCOL OCCURRENCE " ++ fromName n ++ " -"))
+      Just png ->
+        pure $ pName png
 
 prettySession :: TySession -> R.Reader (PPEnv) Doc
 prettySession = \case
@@ -109,7 +110,7 @@ prettyType = \case
       Just doc ->
         pure doc
   TyUnit -> pure $ text "()"
-  TyBase n -> pure $ pName n
+  TyBase n -> pure $ pPrint n
   TyArrow a r -> do
     pa <- prettyType a
     pr <- prettyType r
@@ -136,7 +137,7 @@ prettyAsProtocol d = \case
     pt <- prettyType t
     pure $ parens (pPrint d <+> pt)
 
-prettyProtocol :: Direction -> Name -> [ Type ] -> R.Reader (PPEnv) Doc
+prettyProtocol :: Direction -> Name -> [ TyProto ] -> R.Reader (PPEnv) Doc
 prettyProtocol d pn ts = do
   mn <- lookupCache (TyApp pn ts)
   case mn of
@@ -148,7 +149,7 @@ prettyProtocol d pn ts = do
         Nothing ->
           pure $ text "Skip" <+> braces (text ("- BAD PROTOCOL NAME " ++ fromName pn ++ " -"))
         Just protocol -> do
-          pts <- mapM prettyType ts
+          pts <- mapM prettyTyProto ts
           g <- askGen
           let png = Name (fromName pn ++ show g)
           pcts <- R.local incGen $
@@ -160,7 +161,7 @@ prettyConstructor :: Direction -> Constructor -> R.Reader (PPEnv) Doc
 prettyConstructor d ctor = do
   pargs <- mapM (prettyArgument d) (ctArgs ctor)
   let combine parg prest = parg <+> semi <+> prest
-  pure (pName (ctName ctor) <+> colon <+> foldr combine (text "Skip") pargs)
+  pure (pPrint (ctName ctor) <+> colon <+> foldr combine (text "Skip") pargs)
 
 prettyArgument :: Direction -> Argument -> R.Reader (PPEnv) Doc
 prettyArgument d arg = do

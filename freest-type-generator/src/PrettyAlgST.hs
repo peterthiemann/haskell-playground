@@ -53,7 +53,7 @@ prettyTyProto = \case
   TyApp n [] -> do
     pure $ pPrint n
   TyApp n args -> do
-    pargs <- mapM prettyType args
+    pargs <- mapM prettyTyProto args
     pure $ parens (foldl (<+>) (pPrint n) pargs)
   TyType t ->
     prettyType t

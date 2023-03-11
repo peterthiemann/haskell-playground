@@ -42,7 +42,7 @@ data Argument =
 data TyProto =
     TyType { tyType :: Type }
   | TyApp { tpName :: Name
-          , tyArgs :: [Type]
+          , tyArgs :: [TyProto]
           }
   deriving (Eq, Ord, Show)
 

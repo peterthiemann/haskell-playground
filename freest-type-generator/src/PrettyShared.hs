@@ -5,7 +5,7 @@ import Text.PrettyPrint.HughesPJClass
 import Types
 
 
-bar = text "|"
+bar = text " |"
 dot = text "."
 
 instance Pretty Kind where

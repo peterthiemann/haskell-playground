@@ -17,12 +17,13 @@ pAlt = Protocol "Alt" ["X", "Y"] [Constructor "Left" [Argument Plus (TyType (TyV
 
 pRep :: Protocol
 pRep = Protocol "Rep" ["X"] [Constructor "Nil" [],
-                             Constructor "Cons" [Argument Plus (TyType (TyVar "X")), Argument Plus (TyApp "Rep" [TyVar "X"])]]
+                             Constructor "Cons" [ Argument Plus (TyType (TyVar "X"))
+                                                , Argument Plus (TyApp "Rep" [TyType $ TyVar "X"])]]
 
 pIntList :: Protocol
 pIntList = Protocol "IList" [] [Constructor "INil" [],
-                                Constructor "ICons" [Argument Plus (TyType (TyBase "Int")),
-                                                     Argument Plus (TyApp "IList" [])]]
+                                Constructor "ICons" [ Argument Plus (TyType (TyBase "Int"))
+                                                    , Argument Plus (TyApp "IList" [])]]
 
 tInt :: Type
 tInt = TyBase "Int"
@@ -46,10 +47,10 @@ t2 :: Type
 t2 = TySession $ TyTransmit Input tpIntList $ TyTransmit Output tpIntList $ TyEnd Input
 
 t3 :: Type
-t3 = TySession $ TyTransmit Input (TyApp "Rep" [tInt]) $ TyEnd Input
+t3 = TySession $ TyTransmit Input (TyApp "Rep" [TyType tInt]) $ TyEnd Input
 
 t4 :: Type
-t4 = TySession $ TyTransmit Output (TyApp "Rep" [t3]) $ TyEnd Input
+t4 = TySession $ TyTransmit Output (TyApp "Rep" [TyType t3]) $ TyEnd Input
 
 ex1_4 = putStrLn $ pretty $ prettyModule $ Module [pRep, pIntList] [t1,t2,t3,t4]
 
