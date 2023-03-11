@@ -13,11 +13,23 @@ import PrettyShared
 data PPEnv =
   PPENV
 
+prettySession :: TySession -> R.Reader PPEnv Doc
+prettySession = \case
+  SeVar n -> pure $ pPrint n
+  TyTransmit d t s -> do
+    pt <- prettyTyProto t
+    ps <- prettySession s
+    pure $ parens (pPrint d <+> pt <+> dot <+> ps)
+  TyEnd d -> pure $ (text "End" P.<> pPrint d)
+  TyDual b -> do
+    pb <- prettyType b
+    pure $ parens (text "Dual" <+> pb)
+
 prettyType :: Type -> R.Reader PPEnv Doc
 prettyType = \case
-  TyVar n -> pure $ text n
+  TyVar n -> pure $ pPrint n
   TyUnit  -> pure $ text "()"
-  TyBase n -> pure $ text n
+  TyBase n -> pure $ pPrint n
   TyArrow a r -> do
     pa <- prettyType a
     pr <- prettyType r
@@ -32,26 +44,25 @@ prettyType = \case
     pure $ parens (pf <+> comma <+> ps)
   TyPoly n k b -> do
     pb <- prettyType b
-    pure $ parens (text "forall" <+> parens (text n <+> colon <+> pPrint k) <+> dot <+> pb)
+    pure $ parens (text "forall" <+> parens (pPrint n <+> colon <+> pPrint k) <+> dot <+> pb)
+  TySession s ->
+    prettySession s
+
+prettyTyProto :: TyProto -> R.Reader PPEnv Doc
+prettyTyProto = \case
   TyApp n [] -> do
-    pure $ text n
+    pure $ pPrint n
   TyApp n args -> do
     pargs <- mapM prettyType args
-    pure $ parens (foldl (<+>) (text n) pargs)
-  TySession d t s -> do
-    pt <- prettyType t
-    ps <- prettyType s
-    pure $ parens (pPrint d <+> pt <+> dot <+> ps)
-  TyEnd d -> pure $ (text "End" P.<> pPrint d)
-  TyDual b -> do
-    pb <- prettyType b
-    pure $ parens (text "Dual" <+> pb)
+    pure $ parens (foldl (<+>) (pPrint n) pargs)
+  TyType t ->
+    prettyType t
 
 prettyProtocol :: Protocol -> R.Reader PPEnv Doc
 prettyProtocol p = do
   pctors <- mapM prettyConstructor (prCtors p)
   pure $ hang (text "protocol" <+>
-               foldl (<+>) (text (prName p)) (map text (prParameters p)) <+>
+               foldl (<+>) (pPrint (prName p)) (map pPrint (prParameters p)) <+>
                equals
               )
               4
@@ -60,11 +71,11 @@ prettyProtocol p = do
 prettyConstructor :: Constructor -> R.Reader PPEnv Doc
 prettyConstructor c = do
   pargs <- mapM prettyArgument (ctArgs c)
-  pure $ foldl (<+>) (text (ctName c)) pargs
+  pure $ foldl (<+>) (pPrint (ctName c)) pargs
 
 prettyArgument :: Argument -> R.Reader PPEnv Doc
 prettyArgument arg = do
-  pt <- prettyType (argType arg)
+  pt <- prettyTyProto (argType arg)
   pure $ (pPrint (argPolarity arg) P.<> pt)
 
 prettyModule :: Module -> R.Reader PPEnv Doc

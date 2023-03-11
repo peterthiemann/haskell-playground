@@ -1,35 +1,63 @@
 module Types where
 
+import Data.String
+
 -- type definitions for protocol definitions and types
 
-type Name = String
-type Param = String
+newtype Name = Name { fromName :: String }
+  deriving (Eq, Ord, Show)
+instance IsString Name where
+  fromString = Name
+newtype Param = Param { fromParam :: String }
+  deriving (Eq, Ord, Show)
+instance IsString Param where
+  fromString = Param
 
 data Polarity = Plus | Minus
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Bounded, Enum)
 data Direction = Input | Output
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Bounded, Enum)
 data Kind = SL | SU | TL | TU | ML | MU
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Bounded, Enum)
 
 data Protocol =
   Protocol { prName :: Name
            , prParameters :: [Param]
            , prCtors :: [Constructor]
            }
+  deriving (Eq, Show)
 
 data Constructor =
   Constructor { ctName :: Name
               , ctArgs :: [Argument]
               }
+  deriving (Eq, Show)
 
 data Argument =
   Argument { argPolarity :: Polarity
-           , argType :: Type
+           , argType :: TyProto
            }
+  deriving (Eq, Show)
+
+data TyProto =
+    TyType { tyType :: Type }
+  | TyApp { tpName :: Name
+          , tyArgs :: [Type]
+          }
+  deriving (Eq, Ord, Show)
+
+data TySession =
+    SeVar { seParam :: Param }
+  | TyTransmit { tyDirection :: Direction
+              , tyPayload :: TyProto
+              , tyCont :: TySession
+              }
+  | TyEnd  { tyDirection :: Direction }
+  | TyDual { seBody :: Type }
+  deriving (Eq, Ord, Show)
 
 data Type =
-    TyVar { tyName :: Name }
+    TyVar { tyParam :: Param }
   | TyUnit
   | TyBase { tyName :: Name }
   | TyLolli { tyArg :: Type
@@ -41,24 +69,16 @@ data Type =
   | TyPair { tyFst :: Type
            , tySnd :: Type
            }
-  | TyPoly { tyName :: Name
+  | TyPoly { tyParam :: Param
            , tyKind :: Kind
            , tyBody :: Type
            }
-  | TyApp { tyName :: Name
-          , tyArgs :: [Type]
-          }
-  | TySession { tyDirection :: Direction
-              , tyPayload :: Type
-              , tyCont :: Type
-              }
-  | TyEnd { tyDirection :: Direction }
-  | TyDual { tyBody :: Type }
+  | TySession { tySession :: TySession }
   deriving (Eq, Ord, Show)
 
 data Module = Module [Protocol] [Type]
+  deriving (Eq, Show)
 
-  
 namedProtocol :: Protocol -> (Name, Protocol)
 namedProtocol p = (prName p, p)
 

@@ -19,3 +19,8 @@ instance Pretty Polarity where
   pPrint Plus = empty -- text "+"
   pPrint Minus = text "-"
 
+instance Pretty Name where
+  pPrint (Name s) = text s
+
+instance Pretty Param where
+  pPrint (Param s) = text s

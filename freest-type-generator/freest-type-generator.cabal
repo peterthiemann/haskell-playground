@@ -26,7 +26,10 @@ source-repository head
 library
   exposed-modules:
       Lib
+      PrettyShared
       PrettyFreeST
+      PrettyAlgST
+      Examples
       Setup
       Types
   other-modules:
