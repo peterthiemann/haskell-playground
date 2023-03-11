@@ -2,11 +2,9 @@
 
 module Examples where
 
-import Text.PrettyPrint
-
 import Types
 import PrettyFreeST as PF
-import qualified PrettyAlgSt as PA
+import qualified PrettyAlgST as PA
 
 pSeq :: Protocol
 pSeq = Protocol "Seq" ["X", "Y"] [Constructor "Seq" [Argument Plus (TyType (TyVar "X")), Argument Plus (TyType (TyVar "Y"))]]

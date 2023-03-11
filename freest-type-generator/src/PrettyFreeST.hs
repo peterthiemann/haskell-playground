@@ -178,5 +178,5 @@ prettyModule (Module ps ts) = do
 
 pretty :: R.Reader PPEnv Doc -> String
 pretty reader =
-  let init = PPENV [] [] M.empty 0 in
-  render (R.runReader reader init)
+  let ppenv = PPENV [] [] M.empty 0 in
+  render (R.runReader reader ppenv)

@@ -1,6 +1,7 @@
 module Main (main) where
 
-import Lib
+import GenExamples
 
 main :: IO ()
-main = someFunc
+main = example
+

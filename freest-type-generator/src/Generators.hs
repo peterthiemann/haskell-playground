@@ -63,8 +63,8 @@ genType ofK tvenv pnames params = do
         | otherwise = []
       freqTyPoly
         | subkind TU ofK = [
-            (1, do tv :: Param <- arbitrary
-                   ki :: Kind  <- arbitrary
+            (1, do tv <- arbitrary
+                   ki <- arbitrary
                    pure (TyPoly tv ki) <*> genType ofK ((tv, ki) : tvenv) pnames params)]
         | otherwise = []
   frequency $ 

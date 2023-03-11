@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
-module PrettyAlgSt where
+module PrettyAlgST where
 
 import qualified Control.Monad.Reader as R
 
@@ -86,5 +86,5 @@ prettyModule (Module ps ts) = do
 
 pretty :: R.Reader PPEnv Doc -> String
 pretty reader = 
-  let init = PPENV in
-  render (R.runReader reader init)
+  let ppenv = PPENV in
+  render (R.runReader reader ppenv)

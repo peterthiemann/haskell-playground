@@ -5,7 +5,7 @@ import Types
 import Generators
 
 import qualified PrettyFreeST as PF
-import qualified PrettyAlgSt as PA
+import qualified PrettyAlgST as PA
 
 example :: IO ()
 example = do
