@@ -26,6 +26,7 @@ source-repository head
 library
   exposed-modules:
       Lib
+      Generators
       PrettyShared
       PrettyFreeST
       PrettyAlgST
@@ -39,6 +40,7 @@ library
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       base >=4.7 && <5
+    , QuickCheck
   default-language: Haskell2010
 
 executable freest-type-generator-exe
@@ -51,6 +53,7 @@ executable freest-type-generator-exe
   build-depends:
       base >=4.7 && <5
     , freest-type-generator
+    , QuickCheck
   default-language: Haskell2010
 
 test-suite freest-type-generator-test
@@ -64,4 +67,5 @@ test-suite freest-type-generator-test
   build-depends:
       base >=4.7 && <5
     , freest-type-generator
+    , QuickCheck
   default-language: Haskell2010
