@@ -1,5 +1,5 @@
 module Generators
-  (genType, genSession, genTyProto, genArgument, genCtor)
+  (genType, genSession, genTyProto, genArgument, genCtor, genProtocol, genProtocols)
 where
 
 import Types
@@ -8,7 +8,7 @@ import Test.QuickCheck
 
 -- number of protocol definitions
 genNrProtocols :: Gen Int
-genNrProtocols = choose (1, 1)
+genNrProtocols = choose (1, 2)
 
 -- protocol parameters
 genNrParameters :: Gen Int
@@ -20,7 +20,7 @@ genNrConstructors = choose (1, 2)
 
 -- number of constructor arguments
 genNrArguments :: Gen Int
-genNrArguments = choose (0, 10)
+genNrArguments = choose (0, 2)
 
 type Size = Int
 
@@ -107,10 +107,16 @@ instance Arbitrary Protocol where
     ctors <- vectorOf nrOfCtors (genCtor size [] [pname] params) `suchThat` (allDifferent . map ctName)
     pure (Protocol pname params ctors)
     
--- CONSTRUCTION --
+genProtocol :: Size -> [Name] -> [Param] -> Name -> Gen Protocol
+genProtocol size pnames params pname = do
+  nrOfCtors <- genNrConstructors
+  ctors <- vectorOf nrOfCtors (genCtor size [] pnames params) `suchThat` (allDifferent . map ctName)
+  pure (Protocol pname params ctors)
 
--- instance Arbitrary Type where
---   arbitrary = pure TyUnit
-
--- instance Arbitrary TyProto where
---   arbitrary = pure TyType <*> arbitrary
+genProtocols :: Size -> Gen [Protocol]
+genProtocols size = do
+  nrOfProtocols <- genNrProtocols
+  pnames <- vectorOf nrOfProtocols arbitrary `suchThat` allDifferent
+  nrOfParams <- genNrParameters
+  params <- vectorOf nrOfParams arbitrary `suchThat` allDifferent
+  mapM (genProtocol size pnames params) pnames
