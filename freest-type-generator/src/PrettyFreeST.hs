@@ -152,16 +152,29 @@ prettyProtocol d pn ts = do
           pts <- mapM prettyTyProto ts
           g <- askGen
           let png = Name (fromName pn ++ show g)
-          pcts <- R.local incGen $
-                  R.local (pushCache (TyApp pn ts) png) $
-                  R.local (pushDefs (prParameters protocol) pts) (mapM (prettyConstructor d) (prCtors protocol))
-          pure (text "rec" <+> pName png <+> colon <+> pKind SL <+> dot <+> prettyChoice d <+> braces (sep $ punctuate comma pcts))
+              localize mkctor = R.local incGen $
+                                R.local (pushCache (TyApp pn ts) png) $
+                                R.local (pushDefs (prParameters protocol) pts) mkctor
+          case prCtors protocol of
+            [oneCtor] -> do
+              pctor <- localize (prettyOneConstructor d oneCtor)
+              pure (text "rec" <+> pName png <+> colon <+> pKind SL <+> dot <+> pctor)
+            manyCtors -> do
+              pcts <- localize (mapM (prettyConstructor d) manyCtors)
+              pure (text "rec" <+> pName png <+> colon <+> pKind SL <+> dot <+>
+                    prettyChoice d <+> braces (sep $ punctuate comma pcts))
 
-prettyConstructor :: Direction -> Constructor -> R.Reader (PPEnv) Doc
+prettyConstructor :: Direction -> Constructor -> R.Reader PPEnv Doc
 prettyConstructor d ctor = do
   pargs <- mapM (prettyArgument d) (ctArgs ctor)
   let combine parg prest = parg <+> semi <+> prest
   pure (pPrint (ctName ctor) <+> colon <+> foldr combine (text "Skip") pargs)
+
+prettyOneConstructor :: Direction -> Constructor -> R.Reader PPEnv Doc
+prettyOneConstructor d ctor = do
+  pargs <- mapM (prettyArgument d) (ctArgs ctor)
+  let combine parg prest = parg <+> semi <+> prest
+  pure (foldl combine (text "Skip") pargs)
 
 prettyArgument :: Direction -> Argument -> R.Reader (PPEnv) Doc
 prettyArgument d arg = do
