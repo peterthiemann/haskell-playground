@@ -73,10 +73,12 @@ genSession size tvenv pnames params = do
         [] -> []
         tvnames ->
           [(1, pure SeVar <*> elements tvnames)]
+      freqTyEnd
+        | null freqTyVar = [(1, pure TyEnd <*> arbitrary)]
+        | otherwise  = []
   frequency $
-    freqTyVar ++ 
+    freqTyVar ++ freqTyEnd ++
     [ (size, pure TyTransmit <*> arbitrary <*> genTyProto size2 tvenv pnames params <*> genSession size2 tvenv pnames params)
-    , (1, pure TyEnd <*> arbitrary)
     -- , (1, pure TyDual <*> genSession size tvenv pnames params)
     ]
 
