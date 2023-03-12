@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Examples where
+module Examples () where
 
 import Types
 import PrettyFreeST as PF

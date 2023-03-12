@@ -1,4 +1,6 @@
-module Generators where
+module Generators
+  (genType, genSession, genTyProto, genArgument, genCtor)
+where
 
 import Types
 

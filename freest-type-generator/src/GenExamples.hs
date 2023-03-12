@@ -1,4 +1,4 @@
-module GenExamples where
+module GenExamples (example) where
 
 import Test.QuickCheck
 import Types

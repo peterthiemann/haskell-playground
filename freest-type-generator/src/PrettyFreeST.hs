@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase, FlexibleContexts #-}
 
 module PrettyFreeST where
 

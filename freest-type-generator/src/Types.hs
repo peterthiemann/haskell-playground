@@ -3,6 +3,7 @@ module Types where
 import Data.String
 import Text.PrettyPrint
 import Text.PrettyPrint.HughesPJClass
+import Test.QuickCheck
 
 -- type definitions for protocol definitions and types
 
@@ -31,6 +32,7 @@ subkind SU SL = True
 subkind SU TL = True
 subkind SU TU = True
 subkind SU MU = True
+subkind SU ML = True
 subkind TL TL = True
 subkind TU TU = True
 subkind TU TL = True
@@ -128,3 +130,32 @@ instance Pretty Name where
 
 instance Pretty Param where
   pPrint (Param s) = text s
+
+----------------------------------------------------------------------
+-- instances for QuickCheck
+----------------------------------------------------------------------
+
+
+instance Arbitrary Kind where
+  arbitrary = arbitraryBoundedEnum
+
+instance Arbitrary Direction where
+  arbitrary = arbitraryBoundedEnum
+
+instance Arbitrary Polarity where
+  arbitrary = arbitraryBoundedEnum
+
+instance Arbitrary Name where
+  arbitrary = do
+    x1 <- choose ('A', 'M')
+    x2 <- elements "aeiou"
+    x3 <- choose ('a', 'z')
+    x4 <- choose ('a', 'z')
+    return $ Name [x1, x2, x3, x4]
+
+instance Arbitrary Param where
+  arbitrary = do
+    x1 <- choose ('X', 'Z')
+    x2 <- choose ('A', 'Z')
+    return $ Param [x1, x2]
+
