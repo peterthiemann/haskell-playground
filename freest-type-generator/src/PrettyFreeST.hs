@@ -114,11 +114,11 @@ prettyType = \case
   TyArrow a r -> do
     pa <- prettyType a
     pr <- prettyType r
-    pure $ parens (pa <+> text "->" <+> pr)
+    pure $ parens (pa <+> text "*->" <+> pr)
   TyLolli a r -> do
     pa <- prettyType a
     pr <- prettyType r
-    pure $ parens (pa <+> text "-o" <+> pr)
+    pure $ parens (pa <+> text "1->" <+> pr)
   TyPair f s -> do
     pf <- prettyType f
     ps <- prettyType s
