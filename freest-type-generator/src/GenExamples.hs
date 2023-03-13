@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module GenExamples (example, repeatable) where
 
 import Test.QuickCheck
@@ -27,6 +28,13 @@ example = do
   putStrLn "-----------------------------------------"
   putStrLn "--- corresponding type in FreeST syntax ---"
   putStrLn $ PF.pretty $ PF.prettyModule m
+
+withToolbox :: IO ()
+withToolbox = withSelectedProtocols ["Seq", "Either", "Repeat"]
+
+withSelectedProtocols :: [Name] -> IO ()
+withSelectedProtocols pnames =
+  withProtocols [ p | pn <- pnames, Just p <- [lookup pn (map namedProtocol protocolEnvironment)]]
 
 generateWithSeed :: Int -> Gen a -> IO a
 generateWithSeed seed gena =

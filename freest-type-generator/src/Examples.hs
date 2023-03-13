@@ -1,13 +1,23 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Examples () where
+module Examples 
+  (
+    pIntListP,
+    pListP,
+    pArith,
+    pStream,
+    pSeq,
+    pEither,
+    pRepeat
+  ) where
 
 import Types
 import PrettyFreeST as PF
 import qualified PrettyAlgST as PA
 
 pSeq :: Protocol
-pSeq = Protocol "Seq" ["X", "Y"] [Constructor "Seq" [Argument Plus (TyType (TyVar "X")), Argument Plus (TyType (TyVar "Y"))]]
+pSeq = Protocol "Seq" ["x", "y"] [Constructor "Seq" [Argument Plus (TyType (TyVar "x"))
+                                                    , Argument Plus (TyType (TyVar "y"))]]
 
 pAlt :: Protocol
 pAlt = Protocol "Alt" ["X", "Y"] [Constructor "Left" [Argument Plus (TyType (TyVar "X"))],
@@ -71,3 +81,35 @@ extpTree = putStrLn $ pretty $ prettyModule $ Module [pTree, pForest] [tpTree]
 
 exPA = putStrLn $ PA.pretty (PA.prettyModule $ Module [pRep, pIntList, pTree, pForest] [t1, t2, t3, t4, tpTree])
 
+-- protocol definitions from the paper including the toolkit of generic protocols
+
+pIntListP, pListP, pAstP, pArith, pStream, pEither, pRepeat :: Protocol
+
+pIntListP  = Protocol "IntListP" [] [Constructor "INil" []
+                                    ,Constructor "ICons" [Argument Plus (TyType (TyBase "Int"))
+                                                         ,Argument Plus (TyApp "IntListP" [])]]
+
+pListP  = Protocol "ListP" ["x"] [Constructor "Nil" []
+                                 ,Constructor "Cons" [Argument Plus (TyType (TyVar "x"))
+                                                     ,Argument Plus (TyApp "ListP" [TyType (TyVar "x")])]]
+
+pAstP   = Protocol "AstP" [] [Constructor "ConP" [Argument Plus (TyType (TyBase "Int"))]
+                             ,Constructor "AddP" [Argument Plus (TyApp "AstP" [])
+                                                 ,Argument Plus (TyApp "AstP" [])]]
+
+pArith  = Protocol "Arith" [] [Constructor "Neg" [Argument Plus (TyType (TyBase "Int"))
+                                                 ,Argument Minus (TyType (TyBase "Int"))]
+                              ,Constructor "Add" [Argument Plus (TyType (TyBase "Int"))
+                                                 ,Argument Plus (TyType (TyBase "Int"))
+                                                 ,Argument Minus (TyType (TyBase "Int"))]]
+
+pStream = Protocol "Stream" ["x"] [Constructor "Next" [Argument Plus (TyType (TyVar "x"))
+                                                      ,Argument Plus (TyApp "Stream" [TyType (TyVar "x")])]]
+
+
+pEither = Protocol "Either" ["x", "y"] [Constructor "Lft" [Argument Plus (TyType (TyVar "x"))]
+                                 ,Constructor "Rgt" [Argument Plus (TyType (TyVar "y"))]]
+
+pRepeat = Protocol "Repeat" ["x"] [Constructor "Quit" []
+                               ,Constructor "More" [Argument Plus (TyType (TyVar "x"))
+                                                ,Argument Plus (TyApp "Repeat" [TyType (TyVar "x")])]]
