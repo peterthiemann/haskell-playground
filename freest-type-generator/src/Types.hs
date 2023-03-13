@@ -155,7 +155,7 @@ instance Arbitrary Name where
 
 instance Arbitrary Param where
   arbitrary = do
-    x1 <- choose ('X', 'Z')
-    x2 <- choose ('A', 'Z')
+    x1 <- choose ('x', 'z')
+    x2 <- choose ('a', 'z')
     return $ Param [x1, x2]
 

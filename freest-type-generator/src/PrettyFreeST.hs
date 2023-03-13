@@ -149,7 +149,7 @@ prettyProtocol d pn ts = do
         Nothing ->
           pure $ text "Skip" <+> braces (text ("- BAD PROTOCOL NAME " ++ fromName pn ++ " -"))
         Just protocol -> do
-          pts <- mapM prettyTyProto ts
+          pts <- mapM (prettyAsProtocol d) ts
           g <- askGen
           let png = Name (fromName pn ++ show g)
               localize mkctor = R.local incGen $
