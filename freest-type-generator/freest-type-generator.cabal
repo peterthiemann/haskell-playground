@@ -58,6 +58,7 @@ executable freest-type-generator-exe
     , freest-type-generator
     , mtl
     , pretty
+    , optparse-applicative
   default-language: Haskell2010
 
 test-suite freest-type-generator-test

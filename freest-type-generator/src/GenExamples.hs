@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module GenExamples (example, repeatable) where
+module GenExamples (example, repeatable, GenConfig(..)) where
 
 import Test.QuickCheck
 import Types
@@ -15,25 +15,34 @@ import Examples
 import Test.QuickCheck.Gen (unGen)
 import Test.QuickCheck.Random (mkQCGen)
 
+data GenConfig = GenConfig
+  { psize :: Int
+  , tsize :: Int
+  , toolbox :: Bool
+  , protocols :: [String]
+  }
+
+
 protocolEnvironment :: [Protocol]
 protocolEnvironment =  [pIntListP, pListP, pArith, pStream, pSeq, pEither, pRepeat]
 
-example :: IO ()
-example = withToolbox
+example :: GenConfig -> IO ()
+example config =
+  if toolbox config
+  then withToolbox config
+  else randomProtocols config
 
-randomProtocols :: IO ()
-randomProtocols = do
-  let psize = 8
-  ps <- generate $ genProtocols psize
-  withProtocols ps
+randomProtocols :: GenConfig -> IO ()
+randomProtocols config = do
+  ps <- generate $ genProtocols (psize config)
+  withProtocols ps config
 
-withProtocols :: [Protocol] -> IO ()
-withProtocols ps = do
+withProtocols :: [Protocol] -> GenConfig -> IO ()
+withProtocols ps config = do
   let pnenv  = map (\p -> (prName p, prParameters p)) ps
       -- pnames = map prName ps
       -- params = head (map prParameters ps)
-      tsize  = 32
-  t <- generate $ genType tsize TL [] pnenv
+  t <- generate $ genType (tsize config) TL [] pnenv
   let m = Module ps [t]
   putStrLn "--- protocol and type in AlgST syntax ---"
   putStrLn $ PA.pretty $ PA.prettyModule m
@@ -41,10 +50,10 @@ withProtocols ps = do
   putStrLn "--- corresponding type in FreeST syntax ---"
   putStrLn $ PF.pretty $ PF.prettyModule m
 
-withToolbox :: IO ()
+withToolbox :: GenConfig -> IO ()
 withToolbox = withSelectedProtocols ["Seq", "Either", "Repeat"]
 
-withSelectedProtocols :: [Name] -> IO ()
+withSelectedProtocols :: [Name] -> GenConfig -> IO ()
 withSelectedProtocols pnames =
   withProtocols [ p | pn <- pnames, Just p <- [lookup pn (map namedProtocol protocolEnvironment)]]
 
