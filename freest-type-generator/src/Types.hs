@@ -1,6 +1,8 @@
+{-# LANGUAGE LambdaCase, FlexibleContexts #-}
 module Types where
 
 import Data.String
+import qualified Data.Set as S
 import Text.PrettyPrint
 import Text.PrettyPrint.HughesPJClass
 import Test.QuickCheck
@@ -65,6 +67,7 @@ data Argument =
 
 data TyProto =
     TyType { tyType :: Type }
+  | TyPVar { tpVar :: Param }
   | TyApp { tpName :: Name
           , tyArgs :: [TyProto]
           }
@@ -109,6 +112,87 @@ namedProtocol p = (prName p, p)
 dualDirection :: Direction -> Direction
 dualDirection Input = Output
 dualDirection Output = Input
+
+----------------------------------------------------------------------
+-- substitution
+----------------------------------------------------------------------
+
+type Substitution = [(Param, TyProto)]
+
+class Subst t where
+  subst :: Substitution -> t -> t
+
+instance Subst Type where
+  subst s = \case
+    TyVar parm -> TyVar parm
+    TyUnit -> TyUnit
+    TyBase n -> TyBase n
+    TyLolli t1 t2 -> TyLolli (subst s t1) (subst s t2)
+    TyArrow t1 t2 -> TyArrow (subst s t1) (subst s t2)
+    TyPair  t1 t2 -> TyPair (subst s t1) (subst s t2)
+    TyPoly parm k ty -> TyPoly parm k (subst s ty)
+    TySession ts -> TySession (subst s ts)
+
+instance Subst TySession where
+  subst s = \case
+    SeVar parm -> SeVar parm
+    TyTransmit d tp tc ->
+      TyTransmit d (subst s tp) (subst s tc)
+    TyEnd d ->
+      TyEnd d
+    TyDual sy ->
+      TyDual (subst s sy)
+
+instance Subst TyProto where
+  subst s = \case
+    TyType ty -> TyType (subst s ty)
+    TyPVar pv ->
+      case lookup pv s of
+        Nothing -> TyPVar pv
+        Just proto -> proto
+    TyApp pn pargs -> TyApp pn (map (subst s) pargs)
+
+instance Subst Constructor where
+  subst s = \case
+    Constructor n args -> Constructor n (map (subst s) args)
+
+instance Subst Argument where
+  subst s = \case
+    Argument p tp -> Argument p (subst s tp)
+
+instance Subst x => Subst [x] where
+  subst s = map (subst s)
+
+{-
+class Free t where
+  free :: t -> S.Set Param
+
+instance Free Type where
+  free = \case
+    TyVar parm -> S.singleton parm
+    TyUnit -> S.empty
+    TyBase n -> S.empty
+    TyLolli t1 t2 -> S.union (free t1) (free t2)
+    TyArrow t1 t2 -> S.union (free t1) (free t2)
+    TyPair  t1 t2 -> S.union (free t1) (free t2)
+    TyPoly parm k ty -> free ty S.\\ S.singleton parm
+    TySession ts -> free ts
+
+instance Free TySession where
+  free = \case
+    SeVar parm -> S.singleton parm
+    TyTransmit d tp tc -> S.union (free tp) (free tc)
+    TyEnd d -> S.empty
+    TyDual sy -> free sy
+
+instance Free TyProto where
+  free = \case
+    TyType ty -> free ty
+    TyApp pn pargs -> foldr S.union S.empty (map free pargs)
+
+fresh :: Param -> S.Set Param -> Param
+fresh def xs = head $ filter (not . flip S.member xs) (def : [ Param ("p" ++ show i) | i <- [0..] ])
+-}
 
 ----------------------------------------------------------------------
 -- instances for PP

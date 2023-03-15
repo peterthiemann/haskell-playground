@@ -67,19 +67,6 @@ prettyChoice :: Direction -> Doc
 prettyChoice Input = text "&"
 prettyChoice Output = text "+"
 
--- correct?
-prettyTyProto :: TyProto -> R.Reader PPEnv Doc
-prettyTyProto = \case
-  TyType t ->
-    prettyType t
-  t@(TyApp n args) -> do
-    mn <- lookupCache t    
-    case mn of
-      Nothing ->
-        pure $ text "Skip" <+> braces (text ("- BAD PROTOCOL OCCURRENCE " ++ fromName n ++ " -"))
-      Just png ->
-        pure $ pName png
-
 prettySession :: TySession -> R.Reader (PPEnv) Doc
 prettySession = \case
   SeVar n -> do
@@ -132,6 +119,8 @@ prettyAsProtocol :: Direction -> TyProto -> R.Reader (PPEnv) Doc
 prettyAsProtocol d = \case
   TyApp n args ->
     prettyProtocol d n args
+  TyPVar pv ->
+    pure $ pParam pv
   TyType t -> do
     pt <- prettyType t
     pure $ parens (pPrint d <+> pt)
@@ -148,13 +137,15 @@ prettyProtocol d pn ts = do
         Nothing ->
           pure $ text "Skip" <+> braces (text ("- BAD PROTOCOL NAME " ++ fromName pn ++ " -"))
         Just protocol -> do
+          -- instantiate the constructors
+          let ctors = subst (zip (prParameters protocol) ts) (prCtors protocol)
           pts <- mapM (prettyAsProtocol d) ts
           g <- askGen
           let png = Name (fromName pn ++ show g)
               localize mkctor = R.local incGen $
                                 R.local (pushCache (TyApp pn ts) png) $
                                 R.local (pushDefs (prParameters protocol) pts) mkctor
-          case prCtors protocol of
+          case ctors of
             [oneCtor] -> do
               pctor <- localize (prettyOneConstructor d oneCtor)
               pure (text "rec" <+> pName png <+> colon <+> pKind SL <+> dot <+> pctor)
