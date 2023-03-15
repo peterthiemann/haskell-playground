@@ -16,17 +16,17 @@ import PrettyFreeST as PF
 import qualified PrettyAlgST as PA
 
 pSeq :: Protocol
-pSeq = Protocol "Seq" ["x", "y"] [Constructor "Seq" [Argument Plus (TyType (TyVar "x"))
-                                                    , Argument Plus (TyType (TyVar "y"))]]
+pSeq = Protocol "Seq" ["x", "y"] [Constructor "Seq" [Argument Plus ((TyPVar "x"))
+                                                    , Argument Plus ((TyPVar "y"))]]
 
 pAlt :: Protocol
-pAlt = Protocol "Alt" ["X", "Y"] [Constructor "Left" [Argument Plus (TyType (TyVar "X"))],
-                                  Constructor "Right" [Argument Plus (TyType (TyVar "Y"))]]
+pAlt = Protocol "Alt" ["X", "Y"] [Constructor "Left" [Argument Plus ((TyPVar "X"))],
+                                  Constructor "Right" [Argument Plus ((TyPVar "Y"))]]
 
 pRep :: Protocol
 pRep = Protocol "Rep" ["X"] [Constructor "Nil" [],
-                             Constructor "Cons" [ Argument Plus (TyType (TyVar "X"))
-                                                , Argument Plus (TyApp "Rep" [TyType $ TyVar "X"])]]
+                             Constructor "Cons" [ Argument Plus ((TyPVar "X"))
+                                                , Argument Plus (TyApp "Rep" [TyPVar "X"])]]
 
 pIntList :: Protocol
 pIntList = Protocol "IList" [] [Constructor "INil" [],
@@ -75,10 +75,12 @@ pForest = Protocol "Forest" [] [Constructor "Nil" [],
 tpTree :: Type
 tpTree = TySession $ TyTransmit Input (TyApp "Tree" []) $ TyEnd Input
 
+extpTree :: IO ()
 extpTree = putStrLn $ pretty $ prettyModule $ Module [pTree, pForest] [tpTree]
 
 -- same examples for AlgST
 
+exPA :: IO ()
 exPA = putStrLn $ PA.pretty (PA.prettyModule $ Module [pRep, pIntList, pTree, pForest] [t1, t2, t3, t4, tpTree])
 
 -- protocol definitions from the paper including the toolkit of generic protocols
@@ -90,8 +92,8 @@ pIntListP  = Protocol "IntListP" [] [Constructor "INil" []
                                                          ,Argument Plus (TyApp "IntListP" [])]]
 
 pListP  = Protocol "ListP" ["x"] [Constructor "Nil" []
-                                 ,Constructor "Cons" [Argument Plus (TyType (TyVar "x"))
-                                                     ,Argument Plus (TyApp "ListP" [TyType (TyVar "x")])]]
+                                 ,Constructor "Cons" [Argument Plus ((TyPVar "x"))
+                                                     ,Argument Plus (TyApp "ListP" [(TyPVar "x")])]]
 
 pAstP   = Protocol "AstP" [] [Constructor "ConP" [Argument Plus (TyType (TyBase "Int"))]
                              ,Constructor "AddP" [Argument Plus (TyApp "AstP" [])
@@ -103,13 +105,13 @@ pArith  = Protocol "Arith" [] [Constructor "Neg" [Argument Plus (TyType (TyBase 
                                                  ,Argument Plus (TyType (TyBase "Int"))
                                                  ,Argument Minus (TyType (TyBase "Int"))]]
 
-pStream = Protocol "Stream" ["x"] [Constructor "Next" [Argument Plus (TyType (TyVar "x"))
-                                                      ,Argument Plus (TyApp "Stream" [TyType (TyVar "x")])]]
+pStream = Protocol "Stream" ["x"] [Constructor "Next" [Argument Plus ((TyPVar "x"))
+                                                      ,Argument Plus (TyApp "Stream" [(TyPVar "x")])]]
 
 
-pEither = Protocol "Either" ["x", "y"] [Constructor "Lft" [Argument Plus (TyType (TyVar "x"))]
-                                 ,Constructor "Rgt" [Argument Plus (TyType (TyVar "y"))]]
+pEither = Protocol "Either" ["x", "y"] [Constructor "Left" [Argument Plus ((TyPVar "x"))]
+                                       ,Constructor "Right" [Argument Plus ((TyPVar "y"))]]
 
 pRepeat = Protocol "Repeat" ["x"] [Constructor "Quit" []
-                               ,Constructor "More" [Argument Plus (TyType (TyVar "x"))
-                                                ,Argument Plus (TyApp "Repeat" [TyType (TyVar "x")])]]
+                               ,Constructor "More" [Argument Plus ((TyPVar "x"))
+                                                ,Argument Plus (TyApp "Repeat" [(TyPVar "x")])]]
