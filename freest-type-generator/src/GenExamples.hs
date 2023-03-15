@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
-module GenExamples (example, repeatable, GenConfig(..)) where
+module GenExamples (runGenerator, repeatable, GenConfig(..)) where
 
+import System.Random
 import Test.QuickCheck
 import Types
 import Generators
@@ -18,7 +19,10 @@ import Test.QuickCheck.Random (mkQCGen)
 data GenConfig = GenConfig
   { psize :: Int
   , tsize :: Int
+  , pseed :: Int
+  , tseed :: Int
   , toolbox :: Bool
+  , repeatable :: Bool
   , protocols :: [String]
   }
 
@@ -26,11 +30,21 @@ data GenConfig = GenConfig
 protocolEnvironment :: [Protocol]
 protocolEnvironment =  [pIntListP, pListP, pArith, pStream, pSeq, pEither, pRepeat]
 
-example :: GenConfig -> IO ()
-example config =
-  if toolbox config
-  then withToolbox config
-  else randomProtocols config
+runGenerator :: GenConfig -> IO ()
+runGenerator config
+  | repeatable config = do
+    newTseed <- if tseed config /= -1
+                then pure (tseed config)
+                else randomIO
+    newPseed <- if pseed config /= -1
+                then pure (pseed config)
+                else randomIO
+    let newconfig = config { tseed = newTseed, pseed = newPseed }
+    runRepeatable newconfig
+  | otherwise =
+    if toolbox config
+    then withToolbox config
+    else randomProtocols config
 
 randomProtocols :: GenConfig -> IO ()
 randomProtocols config = do
@@ -62,13 +76,18 @@ generateWithSeed seed gena =
   do let r = mkQCGen seed
      return (unGen gena r 30)
 
-repeatable :: GenConfig -> Int -> Int -> IO ()
-repeatable conf tseed pseed = do
-  ps <- generateWithSeed pseed $ genProtocols (psize conf)
+runRepeatable :: GenConfig -> IO ()
+runRepeatable conf = do
+  putStrLn "--- generating with configuration ---"
+  putStrLn ("--pseed=" ++ show (pseed conf))
+  putStrLn ("--tseed=" ++ show (tseed conf))
+  putStrLn ("--psize=" ++ show (psize conf))
+  putStrLn ("--tsize=" ++ show (tsize conf))
+  ps <- generateWithSeed (pseed conf) $ genProtocols (psize conf)
   let pnenv  = map (\p -> (prName p, prParameters p)) ps
   -- let pnames = map prName ps
   --     params = head (map prParameters ps)
-  t <- generateWithSeed tseed $ genType (tsize conf) TL [] pnenv
+  t <- generateWithSeed (tseed conf) $ genType (tsize conf) TL [] pnenv
   let m = Module ps [t]
   putStrLn "--- protocol and type in AlgST syntax ---"
   putStrLn $ PA.pretty $ PA.prettyModule m

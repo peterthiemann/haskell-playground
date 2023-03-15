@@ -44,6 +44,7 @@ library
     , pretty
     , containers
     , QuickCheck
+    , random
   default-language: Haskell2010
 
 executable freest-type-generator-exe
