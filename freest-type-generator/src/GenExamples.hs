@@ -62,17 +62,16 @@ generateWithSeed seed gena =
   do let r = mkQCGen seed
      return (unGen gena r 30)
 
-repeatable :: Int -> Int -> Int -> Int -> IO ()
-repeatable tseed pseed tsize psize = do
-  ps <- generateWithSeed pseed $ genProtocols psize
+repeatable :: GenConfig -> Int -> Int -> IO ()
+repeatable conf tseed pseed = do
+  ps <- generateWithSeed pseed $ genProtocols (psize conf)
   let pnenv  = map (\p -> (prName p, prParameters p)) ps
   -- let pnames = map prName ps
   --     params = head (map prParameters ps)
-  t <- generateWithSeed tseed $ genType tsize TL [] pnenv
+  t <- generateWithSeed tseed $ genType (tsize conf) TL [] pnenv
   let m = Module ps [t]
   putStrLn "--- protocol and type in AlgST syntax ---"
   putStrLn $ PA.pretty $ PA.prettyModule m
   putStrLn "-----------------------------------------"
   putStrLn "--- corresponding type in FreeST syntax ---"
   putStrLn $ PF.pretty $ PF.prettyModule m
-  

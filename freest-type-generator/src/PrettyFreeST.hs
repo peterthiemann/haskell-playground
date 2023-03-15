@@ -1,6 +1,5 @@
 {-# LANGUAGE LambdaCase, FlexibleContexts #-}
-
-module PrettyFreeST where
+module PrettyFreeST (prettyType, prettyModule, pretty) where
 
 import qualified Control.Monad.Reader as R
 import qualified Data.Map as M

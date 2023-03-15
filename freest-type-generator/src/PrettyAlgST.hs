@@ -1,6 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
-
-module PrettyAlgST where
+module PrettyAlgST (prettyType, prettyModule, pretty) where
 
 import qualified Control.Monad.Reader as R
 
