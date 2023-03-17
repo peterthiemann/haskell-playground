@@ -29,8 +29,6 @@ pKind SL = text "1S"
 pKind SU = text "*S"
 pKind TL = text "1T"
 pKind TU = text "*T"
-pKind ML = text "1T"
-pKind MU = text "*T"
 
 data PPEnv =
   PPENV { ppDefs :: [(Param, Doc)]

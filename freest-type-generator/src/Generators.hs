@@ -43,18 +43,18 @@ genType size ofK tvenv pnenv = do
         tvnames ->
           [(1, pure TyVar <*> elements tvnames)]
       freqTyArrowUnitBasePair
-        | subkind MU ofK = 
+        | subkind TU ofK = 
           [(size, pure TyArrow <*> genType size2 TL tvenv pnenv <*>  genType size2 TL tvenv pnenv)
           ,(1, pure TyUnit)
           ,(1, pure TyBase <*> elements baseTypeNames)
           ,(size, pure TyPair <*> genType size2 ofK tvenv pnenv <*>  genType size2 ofK tvenv pnenv)]
         | otherwise = []
       freqTyLolli
-        | subkind ML ofK =
+        | subkind TL ofK =
           [(size, pure TyLolli <*> genType size2 TL tvenv pnenv <*>  genType size2 TL tvenv pnenv)]
         | otherwise = []
       freqTyPoly
-        | subkind MU ofK = [
+        | subkind TU ofK = [
             (size2, do tv <- arbitrary
                        ki <- arbitrary
                        pure (TyPoly tv ki) <*> genType size2 ofK ((tv, ki) : tvenv) pnenv)]
@@ -90,7 +90,7 @@ genTyProto :: Size -> [(Param, Kind)] -> [(Name, [Param])] -> Gen TyProto
 genTyProto size tvenv pnenv = do
   frequency [(1, do (pname, params) <- elements pnenv
                     pure (TyApp pname) <*> mapM (const (genTyProto size tvenv pnenv)) params)
-            ,(2, pure TyType <*> genType size ML tvenv pnenv)
+            ,(2, pure TyType <*> genType size TL tvenv pnenv)
             ]
 
 genArgument :: Size -> [(Param, Kind)] -> [(Name, [Param])] -> Gen Argument

@@ -21,28 +21,19 @@ data Polarity = Plus | Minus
   deriving (Eq, Ord, Show, Bounded, Enum)
 data Direction = Input | Output
   deriving (Eq, Ord, Show, Bounded, Enum)
-data Kind = SL | SU | TL | TU | ML | MU
+data Kind = SL | SU | TL | TU
   deriving (Eq, Ord, Show, Bounded, Enum)
 
 subkind :: Kind -> Kind -> Bool
 subkind SL SL = True
-subkind SL ML = True
 subkind SL TL = True
 subkind SU SU = True
 subkind SU SL = True
 subkind SU TL = True
 subkind SU TU = True
-subkind SU MU = True
-subkind SU ML = True
 subkind TL TL = True
 subkind TU TU = True
 subkind TU TL = True
-subkind ML ML = True
-subkind MU MU = True
-subkind MU ML = True
-subkind ML TL = True
-subkind MU TL = True
-subkind MU TU = True
 subkind _  _  = False
 
 data Protocol =
