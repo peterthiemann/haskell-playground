@@ -25,6 +25,7 @@ dependencies:
 - pretty
 - containers
 - QuickCheck
+- random
 
 ghc-options:
 - -Wall
@@ -50,6 +51,7 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - freest-type-generator
+    - optparse-applicative
 
 tests:
   freest-type-generator-test:
