@@ -28,7 +28,7 @@ genNrArguments = choose (0, 2)
 type Size = Int
 
 baseTypeNames :: [Name]
-baseTypeNames = map Name ["Int", "Bool", "Char", "String"]
+baseTypeNames = map Name ["Int", "Char", "String", "()"]
 
 allDifferent :: Eq a => [a] -> Bool
 allDifferent [] = True

@@ -36,20 +36,20 @@ pIntList = Protocol "IList" [] [Constructor "INil" [],
 tInt :: Type
 tInt = TyBase "Int"
 
-tBool :: Type
-tBool = TyBase "Bool"
+tUnit :: Type
+tUnit = TyUnit
 
 tpInt :: TyProto
 tpInt = TyType tInt
 
-tpBool :: TyProto
-tpBool = TyType tBool
+tpUnit :: TyProto
+tpUnit = TyType tUnit
 
 tpIntList :: TyProto
 tpIntList = TyApp "IList" []
 
 t1 :: Type
-t1 = TySession $ TyTransmit Input tpInt $ TyTransmit Input tpInt $ TyTransmit Output tpBool $ TyEnd Input
+t1 = TySession $ TyTransmit Input tpInt $ TyTransmit Input tpInt $ TyTransmit Output tpUnit $ TyEnd Input
 
 t2 :: Type
 t2 = TySession $ TyTransmit Input tpIntList $ TyTransmit Output tpIntList $ TyEnd Input
