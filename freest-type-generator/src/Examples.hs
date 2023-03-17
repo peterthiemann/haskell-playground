@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Examples 
+module Examples where
+{-
   (
     pIntListP,
     pListP,
@@ -9,7 +10,8 @@ module Examples
     pSeq,
     pEither,
     pRepeat
-  ) where
+  )
+-}
 
 import Types
 import PrettyFreeST as PF
@@ -60,6 +62,7 @@ t3 = TySession $ TyTransmit Input (TyApp "Rep" [TyType tInt]) $ TyEnd Input
 t4 :: Type
 t4 = TySession $ TyTransmit Output (TyApp "Rep" [TyType t3]) $ TyEnd Input
 
+ex1_4 :: IO ()
 ex1_4 = putStrLn $ pretty $ prettyModule $ Module [pRep, pIntList] [t1,t2,t3,t4]
 
 -- now something mutually recursive

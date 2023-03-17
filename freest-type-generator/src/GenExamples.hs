@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module GenExamples (runGenerator, repeatable, GenConfig(..)) where
+module GenExamples (runGenerator, GenConfig(..)) where
 
 import System.Random
 import Test.QuickCheck

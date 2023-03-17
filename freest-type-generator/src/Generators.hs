@@ -1,4 +1,5 @@
 {-# LANGUAGE TupleSections #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 module Generators
   (genType, genSession, genTyProto, genArgument, genCtor, genProtocol, genProtocols)
 where

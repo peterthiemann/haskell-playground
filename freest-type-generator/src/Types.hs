@@ -2,7 +2,6 @@
 module Types where
 
 import Data.String
-import qualified Data.Set as S
 import Text.PrettyPrint
 import Text.PrettyPrint.HughesPJClass
 import Test.QuickCheck

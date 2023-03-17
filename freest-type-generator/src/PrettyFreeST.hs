@@ -80,7 +80,7 @@ prettySession = \case
     pdt <- prettyAsProtocol d t
     ps <- prettySession s
     pure $ parens (pdt <+> semi <+> ps)
-  TyEnd d -> pure $ text "Skip"
+  TyEnd _d -> pure $ text "Skip"
   TyDual b -> do
     pb <- prettySession b
     pure $ parens (text "dualof" <+> pb)
