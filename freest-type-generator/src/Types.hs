@@ -2,9 +2,8 @@
 module Types where
 
 import Data.String
-import Text.PrettyPrint
-import Text.PrettyPrint.HughesPJClass
 import Test.QuickCheck
+import PrettyShared
 
 -- type definitions for protocol definitions and types
 
@@ -196,7 +195,7 @@ instance Pretty Direction where
   pPrint Output = text "!"
 
 instance Pretty Polarity where
-  pPrint Plus = empty -- text "+"
+  pPrint Plus = mempty
   pPrint Minus = text "-"
 
 instance Pretty Name where

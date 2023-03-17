@@ -63,7 +63,7 @@ t4 :: Type
 t4 = TySession $ TyTransmit Output (TyApp "Rep" [TyType t3]) $ TyEnd Input
 
 ex1_4 :: IO ()
-ex1_4 = putStrLn $ pretty $ prettyModule $ Module [pRep, pIntList] [t1,t2,t3,t4]
+ex1_4 = putPretty $ prettyModule $ Module [pRep, pIntList] [t1,t2,t3,t4]
 
 -- now something mutually recursive
 
@@ -79,12 +79,12 @@ tpTree :: Type
 tpTree = TySession $ TyTransmit Input (TyApp "Tree" []) $ TyEnd Input
 
 extpTree :: IO ()
-extpTree = putStrLn $ pretty $ prettyModule $ Module [pTree, pForest] [tpTree]
+extpTree = putPretty $ prettyModule $ Module [pTree, pForest] [tpTree]
 
 -- same examples for AlgST
 
 exPA :: IO ()
-exPA = putStrLn $ PA.pretty (PA.prettyModule $ Module [pRep, pIntList, pTree, pForest] [t1, t2, t3, t4, tpTree])
+exPA = PA.putPretty (PA.prettyModule $ Module [pRep, pIntList, pTree, pForest] [t1, t2, t3, t4, tpTree])
 
 -- protocol definitions from the paper including the toolkit of generic protocols
 

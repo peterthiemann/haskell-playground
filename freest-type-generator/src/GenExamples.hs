@@ -59,10 +59,10 @@ withProtocols ps config = do
   t <- generate $ genType (tsize config) TL [] pnenv
   let m = Module ps [t]
   putStrLn "--- protocol and type in AlgST syntax ---"
-  putStrLn $ PA.pretty $ PA.prettyModule m
+  PA.putPretty $ PA.prettyModule m
   putStrLn "-----------------------------------------"
   putStrLn "--- corresponding type in FreeST syntax ---"
-  putStrLn $ PF.pretty $ PF.prettyModule m
+  PF.putPretty $ PF.prettyModule m
 
 withToolbox :: GenConfig -> IO ()
 withToolbox = withSelectedProtocols ["Seq", "Either", "Repeat"]
@@ -90,7 +90,7 @@ runRepeatable conf = do
   t <- generateWithSeed (tseed conf) $ genType (tsize conf) TL [] pnenv
   let m = Module ps [t]
   putStrLn "--- protocol and type in AlgST syntax ---"
-  putStrLn $ PA.pretty $ PA.prettyModule m
+  PA.putPretty $ PA.prettyModule m
   putStrLn "-----------------------------------------"
   putStrLn "--- corresponding type in FreeST syntax ---"
-  putStrLn $ PF.pretty $ PF.prettyModule m
+  PF.putPretty $ PF.prettyModule m

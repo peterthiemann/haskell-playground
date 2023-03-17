@@ -1,10 +1,9 @@
 {-# LANGUAGE LambdaCase #-}
-module PrettyAlgST (prettyType, prettyModule, pretty) where
+{-# LANGUAGE OverloadedStrings #-}
+module PrettyAlgST (prettyType, prettyModule, putPretty) where
 
 import qualified Control.Monad.Reader as R
 
-import Text.PrettyPrint
-import Text.PrettyPrint.HughesPJClass as P
 import Types
 
 import PrettyShared
@@ -19,7 +18,7 @@ prettySession = \case
     pt <- prettyTyProto t
     ps <- prettySession s
     pure $ parens (pPrint d <+> pt <+> dot <+> ps)
-  TyEnd d -> pure $ (text "End" P.<> pPrint d)
+  TyEnd d -> pure (text "End" <> pPrint d)
   TyDual b -> do
     pb <- prettySession b
     pure $ parens (text "Dual" <+> pb)
@@ -62,12 +61,11 @@ prettyTyProto = \case
 prettyProtocol :: Protocol -> R.Reader PPEnv Doc
 prettyProtocol p = do
   pctors <- mapM prettyConstructor (prCtors p)
-  pure $ hang (text "protocol" <+>
-               foldl (<+>) (pPrint (prName p)) (map pPrint (prParameters p)) <+>
-               equals
-              )
-              4
-              (vcat $ punctuate bar pctors)
+  let prdef =
+        "protocol"
+          <+> foldl (<+>) (pPrint (prName p)) (map pPrint (prParameters p))
+          <+> equals
+  pure . vcat $ prdef : ["  " <> bar <+> ctor | ctor <- pctors]
 
 prettyConstructor :: Constructor -> R.Reader PPEnv Doc
 prettyConstructor c = do
@@ -77,7 +75,7 @@ prettyConstructor c = do
 prettyArgument :: Argument -> R.Reader PPEnv Doc
 prettyArgument arg = do
   pt <- prettyTyProto (argType arg)
-  pure $ (pPrint (argPolarity arg) P.<> pt)
+  pure (pPrint (argPolarity arg) <> pt)
 
 prettyModule :: Module -> R.Reader PPEnv Doc
 prettyModule (Module ps ts) = do
@@ -85,7 +83,5 @@ prettyModule (Module ps ts) = do
   pts <- mapM prettyType ts
   pure (vcat pps $$ vcat pts)
 
-pretty :: R.Reader PPEnv Doc -> String
-pretty reader = 
-  let ppenv = PPENV in
-  render (R.runReader reader ppenv)
+putPretty :: R.Reader PPEnv Doc -> IO ()
+putPretty r = putDoc (R.runReader r PPENV)

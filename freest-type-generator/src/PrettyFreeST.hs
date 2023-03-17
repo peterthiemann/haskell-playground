@@ -1,11 +1,9 @@
 {-# LANGUAGE LambdaCase, FlexibleContexts #-}
-module PrettyFreeST (prettyType, prettyModule, pretty) where
+module PrettyFreeST (prettyType, prettyModule, putPretty) where
 
 import qualified Control.Monad.Reader as R
 import qualified Data.Map as M
 import Data.Char (toLower)
-import Text.PrettyPrint
-import Text.PrettyPrint.HughesPJClass
 import Types
 
 import PrettyShared 
@@ -58,14 +56,14 @@ askGen = fmap ppGen R.ask
 askDefs :: R.Reader PPEnv [(Param, Doc)]
 askDefs = fmap ppDefs R.ask
 
-askProtocols :: R.Reader (PPEnv) [Protocol]
+askProtocols :: R.Reader PPEnv [Protocol]
 askProtocols = fmap ppProto R.ask
 
 prettyChoice :: Direction -> Doc
 prettyChoice Input = text "&"
 prettyChoice Output = text "+"
 
-prettySession :: TySession -> R.Reader (PPEnv) Doc
+prettySession :: TySession -> R.Reader PPEnv Doc
 prettySession = \case
   SeVar n -> do
     defs <- askDefs
@@ -84,7 +82,7 @@ prettySession = \case
     pure $ parens (text "dualof" <+> pb)
     
 
-prettyType :: Type -> R.Reader (PPEnv) Doc
+prettyType :: Type -> R.Reader PPEnv Doc
 prettyType = \case
   TyVar n -> do
     defs <- askDefs
@@ -113,7 +111,7 @@ prettyType = \case
   TySession s ->
     prettySession s
 
-prettyAsProtocol :: Direction -> TyProto -> R.Reader (PPEnv) Doc
+prettyAsProtocol :: Direction -> TyProto -> R.Reader PPEnv Doc
 prettyAsProtocol d = \case
   TyApp n args ->
     prettyProtocol d n args
@@ -123,7 +121,7 @@ prettyAsProtocol d = \case
     pt <- prettyType t
     pure $ parens (pPrint d <+> pt)
 
-prettyProtocol :: Direction -> Name -> [ TyProto ] -> R.Reader (PPEnv) Doc
+prettyProtocol :: Direction -> Name -> [ TyProto ] -> R.Reader PPEnv Doc
 prettyProtocol d pn ts = do
   mn <- lookupCache (TyApp pn ts)
   case mn of
@@ -164,7 +162,7 @@ prettyOneConstructor d ctor = do
   let combine parg prest = parg <+> semi <+> prest
   pure (foldl combine (text "Skip") pargs)
 
-prettyArgument :: Direction -> Argument -> R.Reader (PPEnv) Doc
+prettyArgument :: Direction -> Argument -> R.Reader PPEnv Doc
 prettyArgument d arg = do
   let d' = case argPolarity arg of
         Plus -> d
@@ -176,8 +174,5 @@ prettyModule (Module ps ts) = do
   pts <- R.local (\ ppenv -> ppenv { ppProto = ps }) $ mapM prettyType ts
   pure (vcat pts)
 
-
-pretty :: R.Reader PPEnv Doc -> String
-pretty reader =
-  let ppenv = PPENV [] [] M.empty 0 in
-  render (R.runReader reader ppenv)
+putPretty :: R.Reader PPEnv Doc -> IO ()
+putPretty r = putDoc $ R.runReader r (PPENV [] [] M.empty 0)
