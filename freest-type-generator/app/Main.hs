@@ -38,6 +38,15 @@ argTseed = optional . option auto $
            <> metavar "TSEED"
            <> help "Use TSEED to generate protocols" )
 
+argCount :: Parser Int
+argCount = option auto
+           ( long "count"
+           <> short 'n'
+           <> metavar "N"
+           <> value 1
+           <> showDefault
+           <> help "Generate N pairs of types to benchmark" )
+
 argOutput :: Parser (Maybe FilePath)
 argOutput = optional . strOption $
             ( long "output"
@@ -60,6 +69,7 @@ cmdLineArgs = GenConfig
               <*> argTsize
               <*> argPseed
               <*> argTseed
+              <*> argCount
               <*> argToolbox
               <*> argOutput
               <*> argProtocols

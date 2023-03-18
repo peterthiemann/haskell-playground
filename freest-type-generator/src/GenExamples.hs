@@ -28,6 +28,7 @@ data GenConfig = GenConfig
   , tsize :: Int
   , pseed :: Maybe Int
   , tseed :: Maybe Int
+  , count :: Int
   , toolbox :: Bool
   , outputFile :: Maybe FilePath
   , protocols :: [String]
@@ -51,6 +52,7 @@ putRerunInfo h (ps, ts, config) = do
   hPutStrLn h $ "--tseed=" ++ show ts
   hPutStrLn h $ "--psize=" ++ show (psize config)
   hPutStrLn h $ "--tsize=" ++ show (tsize config)
+  hPutStrLn h $ "--count=" ++ show (count config)
   hPutStrLn h "------------------"
   hPutStrLn h ""
 
@@ -73,7 +75,7 @@ runGenerator config = do
   let pnenv = map (\p -> (prName p, prParameters p)) ps
   -- let pnames = map prName ps
   --     params = head (map prParameters ps)
-  ts <- generateWithSeed newTSeed $ replicateM 5 $ resize (tsize config) $
+  ts <- generateWithSeed newTSeed $ replicateM (count config) $ resize (tsize config) $
     genType TL [] pnenv
   let m = Module ps ts
   let algstDoc = PA.runPretty $ PA.prettyModule m
