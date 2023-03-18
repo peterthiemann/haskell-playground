@@ -26,7 +26,6 @@ pParam = text . map toLower . fromParam
 
 pKind :: Kind -> Doc
 pKind SL = text "1S"
-pKind SU = text "*S"
 pKind TL = text "1T"
 pKind TU = text "*T"
 

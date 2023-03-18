@@ -60,7 +60,7 @@ genType ofK tvenv pnenv = sized \size -> do
                        pure (TyPoly tv ki) <*> genType2 ofK ((tv, ki) : tvenv) pnenv)]
         | otherwise = []
       freqTySession
-        | subkind SU ofK =
+        | subkind SL ofK =
           [(2 * size + 1, pure TySession <*> genSession tvenv pnenv)]
         | otherwise = []
   frequency $
