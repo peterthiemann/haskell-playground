@@ -1,5 +1,7 @@
-{-# LANGUAGE LambdaCase, FlexibleContexts #-}
-module PrettyFreeST (prettyType, prettyModule, putPretty) where
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
+module PrettyFreeST (prettyType, prettyModule, runPretty) where
 
 import qualified Control.Monad.Reader as R
 import qualified Data.Map as M
@@ -169,10 +171,17 @@ prettyArgument d arg = do
         Minus -> dualDirection d
   prettyAsProtocol d' (argType arg)
 
+prettyBenchmark :: Type -> Type -> R.Reader PPEnv Doc
+prettyBenchmark t u = do
+  pt <- prettyType t
+  pu <- prettyType u
+  pure $ pt $$ pu
+
 prettyModule :: Module -> R.Reader PPEnv Doc
 prettyModule (Module ps ts) = do
-  pts <- R.local (\ ppenv -> ppenv { ppProto = ps }) $ mapM prettyType ts
-  pure (vcat pts)
+  pts <- R.local (\ ppenv -> ppenv { ppProto = ps }) do
+    mapM (\t -> prettyBenchmark t t) ts
+  pure $ vcat (punctuate nl pts)
 
-putPretty :: R.Reader PPEnv Doc -> IO ()
-putPretty r = putDoc $ R.runReader r (PPENV [] [] M.empty 0)
+runPretty :: R.Reader PPEnv Doc -> Doc
+runPretty = flip R.runReader (PPENV [] [] M.empty 0)

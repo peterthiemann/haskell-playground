@@ -3,6 +3,7 @@
 module PrettyShared where
 
 import Data.ByteString.Builder
+import Data.List (intersperse)
 import Data.String (IsString)
 import System.IO
 
@@ -16,20 +17,16 @@ text :: String -> Doc
 text = Doc . stringUtf8
 
 (<+>) :: Doc -> Doc -> Doc
-Doc x <+> Doc y = Doc (x <> char7 ' ' <> y)
+x <+> y = x <> space <> y
 
 ($$) :: Doc -> Doc -> Doc
-Doc x $$ Doc y = Doc (x <> char7 '\n' <> y)
-
-joinDoc :: (Doc -> Doc -> Doc) -> [Doc] -> Doc
-joinDoc _ [] = mempty
-joinDoc f ds = foldr1 f ds
+x $$ y = x <> nl <> y
 
 sep :: [Doc] -> Doc
-sep = joinDoc (<+>)
+sep = mconcat . intersperse space
 
 vcat :: [Doc] -> Doc
-vcat = joinDoc ($$)
+vcat = mconcat . intersperse nl
 
 punctuate :: Doc -> [Doc] -> [Doc]
 punctuate _ [] = []
@@ -38,6 +35,12 @@ punctuate p (d:ds) = (d <> p) : punctuate p ds
 
 enclose :: Doc -> Doc -> Doc -> Doc
 enclose (Doc l) (Doc r) (Doc x) = Doc (l <> x <> r)
+
+nl :: Doc
+nl = Doc (char7 '\n')
+
+space :: Doc
+space = Doc (char7 ' ')
 
 lparen, rparen :: Doc
 lparen = Doc (char7 '(')
@@ -75,4 +78,4 @@ putDoc :: Doc -> IO ()
 putDoc = hPutDoc stdout
 
 hPutDoc :: Handle -> Doc -> IO ()
-hPutDoc h (Doc b) = hPutBuilder h b >> hPutChar h '\n'
+hPutDoc h (Doc b) = hPutBuilder h b

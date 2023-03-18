@@ -42,6 +42,7 @@ library
     , base >=4.7 && <5
     , bytestring
     , containers
+    , filepath
     , mtl
     , random
   default-language: Haskell2010
@@ -58,6 +59,7 @@ executable freest-type-generator-exe
     , base >=4.7 && <5
     , bytestring
     , containers
+    , filepath
     , freest-type-generator
     , mtl
     , optparse-applicative
@@ -77,6 +79,7 @@ test-suite freest-type-generator-test
     , base >=4.7 && <5
     , bytestring
     , containers
+    , filepath
     , freest-type-generator
     , mtl
     , random

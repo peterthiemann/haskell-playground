@@ -38,6 +38,13 @@ argTseed = optional . option auto $
            <> metavar "TSEED"
            <> help "Use TSEED to generate protocols" )
 
+argOutput :: Parser (Maybe FilePath)
+argOutput = optional . strOption $
+            ( long "output"
+            <> short 'o'
+            <> metavar "FILE"
+            <> help "Write source to FILE.algst and FILE.fst" )
+
 argToolbox :: Parser Bool
 argToolbox = switch
           ( long "toolbox"
@@ -54,6 +61,7 @@ cmdLineArgs = GenConfig
               <*> argPseed
               <*> argTseed
               <*> argToolbox
+              <*> argOutput
               <*> argProtocols
 
 opts :: ParserInfo GenConfig

@@ -1,12 +1,13 @@
+{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
-module PrettyAlgST (prettyType, prettyModule, putPretty) where
+module PrettyAlgST (prettyType, prettyModule, runPretty) where
 
-import qualified Control.Monad.Reader as R
-
-import Types
+import Control.Monad.Reader qualified as R
 
 import PrettyShared
+import Types
+
 
 data PPEnv =
   PPENV
@@ -61,11 +62,13 @@ prettyTyProto = \case
 prettyProtocol :: Protocol -> R.Reader PPEnv Doc
 prettyProtocol p = do
   pctors <- mapM prettyConstructor (prCtors p)
-  let prdef =
+  let prhead =
         "protocol"
           <+> foldl (<+>) (pPrint (prName p)) (map pPrint (prParameters p))
           <+> equals
-  pure . vcat $ prdef : ["  " <> bar <+> ctor | ctor <- pctors]
+  let prdef = vcat $
+        prhead : ["  " <> bar <+> ctor | ctor <- pctors]
+  pure $ prdef <> nl
 
 prettyConstructor :: Constructor -> R.Reader PPEnv Doc
 prettyConstructor c = do
@@ -77,11 +80,17 @@ prettyArgument arg = do
   pt <- prettyTyProto (argType arg)
   pure (pPrint (argPolarity arg) <> pt)
 
+prettyBenchmark :: Type -> Type -> R.Reader PPEnv Doc
+prettyBenchmark t u = do
+  pt <- prettyType t
+  pu <- prettyType u
+  pure $ vcat ["{-# BENCHMARK", pt, pu, "#-}"] <> nl
+
 prettyModule :: Module -> R.Reader PPEnv Doc
 prettyModule (Module ps ts) = do
   pps <- mapM prettyProtocol ps
-  pts <- mapM prettyType ts
+  pts <- mapM (\t -> prettyBenchmark t t) ts
   pure (vcat pps $$ vcat pts)
 
-putPretty :: R.Reader PPEnv Doc -> IO ()
-putPretty r = putDoc (R.runReader r PPENV)
+runPretty :: R.Reader PPEnv Doc -> Doc
+runPretty = flip R.runReader PPENV

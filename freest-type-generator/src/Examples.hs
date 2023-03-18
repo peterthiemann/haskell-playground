@@ -1,9 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
-module Examples where
-{-
-  (
-    pIntListP,
+module Examples
+  ( pIntListP,
     pListP,
     pArith,
     pStream,
@@ -11,11 +10,9 @@ module Examples where
     pEither,
     pRepeat
   )
--}
+where
 
 import Types
-import PrettyFreeST as PF
-import qualified PrettyAlgST as PA
 
 pSeq :: Protocol
 pSeq = Protocol "Seq" ["x", "y"] [Constructor "Seq" [Argument Plus ((TyPVar "x"))
@@ -62,8 +59,8 @@ t3 = TySession $ TyTransmit Input (TyApp "Rep" [TyType tInt]) $ TyEnd Input
 t4 :: Type
 t4 = TySession $ TyTransmit Output (TyApp "Rep" [TyType t3]) $ TyEnd Input
 
-ex1_4 :: IO ()
-ex1_4 = putPretty $ prettyModule $ Module [pRep, pIntList] [t1,t2,t3,t4]
+--ex1_4 :: IO ()
+--ex1_4 = putPretty $ prettyModule $ Module [pRep, pIntList] [t1,t2,t3,t4]
 
 -- now something mutually recursive
 
@@ -78,13 +75,13 @@ pForest = Protocol "Forest" [] [Constructor "Nil" [],
 tpTree :: Type
 tpTree = TySession $ TyTransmit Input (TyApp "Tree" []) $ TyEnd Input
 
-extpTree :: IO ()
-extpTree = putPretty $ prettyModule $ Module [pTree, pForest] [tpTree]
+--extpTree :: IO ()
+--extpTree = putPretty $ prettyModule $ Module [pTree, pForest] [tpTree]
 
 -- same examples for AlgST
 
-exPA :: IO ()
-exPA = PA.putPretty (PA.prettyModule $ Module [pRep, pIntList, pTree, pForest] [t1, t2, t3, t4, tpTree])
+--exPA :: IO ()
+--exPA = PA.putPretty (PA.prettyModule $ Module [pRep, pIntList, pTree, pForest] [t1, t2, t3, t4, tpTree])
 
 -- protocol definitions from the paper including the toolkit of generic protocols
 

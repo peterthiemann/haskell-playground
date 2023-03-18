@@ -24,6 +24,7 @@ dependencies:
 - QuickCheck
 - bytestring
 - containers
+- filepath
 - mtl
 - random
 

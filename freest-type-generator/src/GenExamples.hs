@@ -8,6 +8,7 @@ import Data.Either (partitionEithers)
 import Data.Foldable
 import Data.List (intercalate)
 import System.Exit
+import System.FilePath
 import System.IO
 import System.Random
 import Test.QuickCheck
@@ -18,6 +19,7 @@ import Examples
 import Generators
 import PrettyAlgST qualified as PA
 import PrettyFreeST qualified as PF
+import PrettyShared
 import Types
 
 data GenConfig = GenConfig
@@ -26,6 +28,7 @@ data GenConfig = GenConfig
   , pseed :: Maybe Int
   , tseed :: Maybe Int
   , toolbox :: Bool
+  , outputFile :: Maybe FilePath
   , protocols :: [String]
   }
 
@@ -33,7 +36,7 @@ protocolEnvironment :: [Protocol]
 protocolEnvironment =  [pIntListP, pListP, pArith, pStream, pSeq, pEither, pRepeat]
 
 toolboxEnvironment :: [Protocol]
-toolboxEnvironment = [pSeq, pEither, pRepeat] 
+toolboxEnvironment = [pSeq, pEither, pRepeat]
 
 resolveSeed :: Maybe Int -> IO Int
 resolveSeed = maybe randomIO pure
@@ -43,15 +46,15 @@ runGenerator config = do
   -- Generate protocols/select protocols.
   newPSeed <- resolveSeed (pseed config)
   newTSeed <- resolveSeed (tseed config)
-  putStrLn "-- Rerun with"
+  putStrLn "--- Rerun with ---"
   putStrLn $ "--pseed=" ++ show newPSeed
   putStrLn $ "--tseed=" ++ show newTSeed
-  putStrLn ("--psize=" ++ show (psize config))
-  putStrLn ("--tsize=" ++ show (tsize config))
+  putStrLn $ "--psize=" ++ show (psize config)
+  putStrLn $ "--tsize=" ++ show (tsize config)
   ps <-
     if | null (protocols config) && toolbox config ->
            pure toolboxEnvironment
-       | null (protocols config) ->
+       | null (protocols config) ->
            generateWithSeed newPSeed $ genProtocols (psize config)
        | toolbox config ->
            selectProtocols (protocols config) toolboxEnvironment
@@ -62,11 +65,22 @@ runGenerator config = do
   --     params = head (map prParameters ps)
   t <- generateWithSeed newTSeed $ genType (tsize config) TL [] pnenv
   let m = Module ps [t]
-  putStrLn "--- protocol and type in AlgST syntax ---"
-  PA.putPretty $ PA.prettyModule m
-  putStrLn "-----------------------------------------"
-  putStrLn "--- corresponding type in FreeST syntax ---"
-  PF.putPretty $ PF.prettyModule m
+  let algstDoc = PA.runPretty $ PA.prettyModule m
+  let freestDoc = PF.runPretty $ PF.prettyModule m
+  case outputFile config of
+    Nothing -> do
+      putStrLn "--- protocol and type in AlgST syntax ---"
+      putDoc algstDoc
+      putStrLn "-----------------------------------------"
+      putStrLn "--- corresponding type in FreeST syntax ---"
+      putDoc freestDoc
+    Just basePath -> do
+      let algstPath = basePath <.> "algst"
+      let freestPath = basePath <.> "fst"
+      putStrLn $ "--- writing protocols and types in AlgST syntax to " ++ algstPath
+      withFile algstPath WriteMode (`hPutDoc` algstDoc)
+      putStrLn $ "--- writing corresponding types in FreeST syntax to " ++ freestPath
+      withFile freestPath WriteMode (`hPutDoc` freestDoc)
 
 generateWithSeed :: Int -> Gen a -> IO a
 generateWithSeed seed gena =
