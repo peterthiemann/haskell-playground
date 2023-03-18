@@ -1,3 +1,4 @@
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE TupleSections #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 module Generators
@@ -26,53 +27,52 @@ genNrConstructors = choose (1, 2)
 genNrArguments :: Gen Int
 genNrArguments = choose (0, 2)
 
-type Size = Int
-
 baseTypeNames :: [Name]
 baseTypeNames = map Name ["Int", "Char", "String", "()"]
 
 allDifferent :: Eq a => [a] -> Bool
 allDifferent [] = True
-allDifferent (x : xs) = not (x `elem` xs) && allDifferent xs
+allDifferent (x : xs) = x `notElem` xs && allDifferent xs
 
-genType :: Size -> Kind -> [(Param, Kind)] -> [(Name, [Param])] -> Gen Type
-genType size ofK tvenv pnenv = do
+genType ::  Kind -> [(Param, Kind)] -> [(Name, [Param])] -> Gen Type
+genType ofK tvenv pnenv = sized \size -> do
   let size2 = size `div` 2
+      genType2 k tvenv' = resize size2 . genType k tvenv'
       freqTyVar = case [ n | (n, k) <- tvenv, subkind k ofK ] of
         [] -> []
         tvnames ->
           [(1, pure TyVar <*> elements tvnames)]
       freqTyArrowUnitBasePair
-        | subkind TU ofK = 
-          [(size, pure TyArrow <*> genType size2 TL tvenv pnenv <*>  genType size2 TL tvenv pnenv)
+        | subkind TU ofK =
+          [(size, pure TyArrow <*> genType2 TL tvenv pnenv <*>  genType2 TL tvenv pnenv)
           ,(1, pure TyUnit)
           ,(1, pure TyBase <*> elements baseTypeNames)
-          ,(size, pure TyPair <*> genType size2 ofK tvenv pnenv <*>  genType size2 ofK tvenv pnenv)]
+          ,(size, pure TyPair <*> genType2 ofK tvenv pnenv <*>  genType2 ofK tvenv pnenv)]
         | otherwise = []
       freqTyLolli
         | subkind TL ofK =
-          [(size, pure TyLolli <*> genType size2 TL tvenv pnenv <*>  genType size2 TL tvenv pnenv)]
+          [(size, pure TyLolli <*> genType2 TL tvenv pnenv <*>  genType2 TL tvenv pnenv)]
         | otherwise = []
       freqTyPoly
         | subkind TU ofK = [
             (size2, do tv <- arbitrary
                        ki <- arbitrary
-                       pure (TyPoly tv ki) <*> genType size2 ofK ((tv, ki) : tvenv) pnenv)]
+                       pure (TyPoly tv ki) <*> genType2 ofK ((tv, ki) : tvenv) pnenv)]
         | otherwise = []
       freqTySession
         | subkind SU ofK =
-          [(2 * size + 1, pure TySession <*> genSession size tvenv pnenv)]
+          [(2 * size + 1, pure TySession <*> genSession tvenv pnenv)]
         | otherwise = []
-  frequency $ 
-    freqTyVar ++ 
+  frequency $
+    freqTyVar ++
     freqTyArrowUnitBasePair ++
     freqTyLolli ++
     freqTyPoly ++
     freqTySession
 
-genSession :: Size -> [(Param, Kind)] -> [(Name, [Param])] -> Gen TySession
-genSession size tvenv pnenv = do
-  let size2 = size `div` 2
+genSession :: [(Param, Kind)] -> [(Name, [Param])] -> Gen TySession
+genSession tvenv pnenv = sized \size -> do
+  let halfSized = resize (size `div` 2)
       freqTyVar = case [ n | (n, k) <- tvenv, subkind k SL ] of
         [] -> []
         tvnames ->
@@ -82,48 +82,47 @@ genSession size tvenv pnenv = do
         | otherwise  = []
   frequency $
     freqTyVar ++ freqTyEnd ++
-    [ (size, pure TyTransmit <*> arbitrary <*> genTyProto size2 tvenv pnenv <*> genSession size2 tvenv pnenv)
+    [ (size, pure TyTransmit <*> arbitrary <*> halfSized (genTyProto tvenv pnenv) <*> halfSized (genSession tvenv pnenv))
     -- , (1, pure TyDual <*> genSession size tvenv pnames params)
     ]
 
-genTyProto :: Size -> [(Param, Kind)] -> [(Name, [Param])] -> Gen TyProto
-genTyProto size tvenv pnenv = do
+genTyProto :: [(Param, Kind)] -> [(Name, [Param])] -> Gen TyProto
+genTyProto tvenv pnenv = do
   frequency [(1, do (pname, params) <- elements pnenv
-                    pure (TyApp pname) <*> mapM (const (genTyProto size tvenv pnenv)) params)
-            ,(2, pure TyType <*> genType size TL tvenv pnenv)
+                    pure (TyApp pname) <*> mapM (const (genTyProto tvenv pnenv)) params)
+            ,(2, pure TyType <*> genType TL tvenv pnenv)
             ]
 
-genArgument :: Size -> [(Param, Kind)] -> [(Name, [Param])] -> Gen Argument
-genArgument size tvenv pnenv = do
-  pure Argument <*> arbitrary <*> genTyProto size tvenv pnenv
+genArgument :: [(Param, Kind)] -> [(Name, [Param])] -> Gen Argument
+genArgument tvenv pnenv = do
+  pure Argument <*> arbitrary <*> genTyProto tvenv pnenv
 
-genCtor :: Size -> [(Param, Kind)] -> [(Name, [Param])] -> Gen Constructor
-genCtor size tvenv pnenv = do
+genCtor :: [(Param, Kind)] -> [(Name, [Param])] -> Gen Constructor
+genCtor tvenv pnenv = do
   cname <- arbitrary
   nrOfArgs <- genNrArguments
-  args <- vectorOf nrOfArgs (genArgument size tvenv pnenv)
+  args <- vectorOf nrOfArgs (genArgument tvenv pnenv)
   pure $ Constructor cname args
 
 instance Arbitrary Protocol where
   arbitrary = do
-    let size = 8
     pname <- arbitrary
     nrOfCtors <- genNrConstructors
     nrOfParams <- genNrParameters
     params <- vectorOf nrOfParams arbitrary `suchThat` allDifferent
-    ctors <- vectorOf nrOfCtors (genCtor size [] [(pname, params)]) `suchThat` (allDifferent . map ctName)
+    ctors <- vectorOf nrOfCtors (genCtor [] [(pname, params)]) `suchThat` (allDifferent . map ctName)
     pure (Protocol pname params ctors)
-    
-genProtocol :: Size -> [(Name, [Param])] -> Name -> Gen Protocol
-genProtocol size pnenv pname = do
+
+genProtocol :: [(Name, [Param])] -> Name -> Gen Protocol
+genProtocol pnenv pname = do
   nrOfCtors <- genNrConstructors
-  ctors <- vectorOf nrOfCtors (genCtor size [] pnenv) `suchThat` (allDifferent . map ctName)
+  ctors <- vectorOf nrOfCtors (genCtor [] pnenv) `suchThat` (allDifferent . map ctName)
   pure (Protocol pname (fromJust $ lookup pname pnenv) ctors)
 
-genProtocols :: Size -> Gen [Protocol]
-genProtocols size = do
+genProtocols :: Gen [Protocol]
+genProtocols = do
   nrOfProtocols <- genNrProtocols
   pnames <- vectorOf nrOfProtocols arbitrary `suchThat` allDifferent
   nrOfParams <- genNrParameters
   params <- vectorOf nrOfParams arbitrary `suchThat` allDifferent
-  mapM (genProtocol size (map (,params) pnames)) pnames
+  mapM (genProtocol (map (,params) pnames)) pnames

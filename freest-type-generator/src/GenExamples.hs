@@ -65,7 +65,7 @@ runGenerator config = do
     if | null (protocols config) && toolbox config ->
            pure toolboxEnvironment
        | null (protocols config) ->
-           generateWithSeed newPSeed $ genProtocols (psize config)
+           generateWithSeed newPSeed $ resize (psize config) genProtocols
        | toolbox config ->
            selectProtocols (protocols config) toolboxEnvironment
        | otherwise ->
@@ -73,8 +73,8 @@ runGenerator config = do
   let pnenv = map (\p -> (prName p, prParameters p)) ps
   -- let pnames = map prName ps
   --     params = head (map prParameters ps)
-  ts <- generateWithSeed newTSeed $ replicateM 5 $
-    genType (tsize config) TL [] pnenv
+  ts <- generateWithSeed newTSeed $ replicateM 5 $ resize (tsize config) $
+    genType TL [] pnenv
   let m = Module ps ts
   let algstDoc = PA.runPretty $ PA.prettyModule m
   let freestDoc = PF.runPretty $ PF.prettyModule m
