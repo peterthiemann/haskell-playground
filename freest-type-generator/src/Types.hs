@@ -88,7 +88,7 @@ data Type =
   | TySession { tySession :: TySession }
   deriving (Eq, Ord, Show)
 
-data Module = Module [Protocol] [Type]
+data Module = Module [Protocol] [(Type, Type)]
   deriving (Eq, Show)
 
 namedProtocol :: Protocol -> (Name, Protocol)

@@ -89,7 +89,7 @@ prettyBenchmark t u = do
 prettyModule :: Module -> R.Reader PPEnv Doc
 prettyModule (Module ps ts) = do
   pps <- mapM prettyProtocol ps
-  pts <- mapM (\t -> prettyBenchmark t t) ts
+  pts <- mapM (uncurry prettyBenchmark) ts
   pure (vcat pps $$ vcat pts)
 
 runPretty :: R.Reader PPEnv Doc -> Doc
