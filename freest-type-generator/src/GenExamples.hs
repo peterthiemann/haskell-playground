@@ -63,7 +63,7 @@ runGenerator config = do
   newTSeed <- resolveSeed (tseed config)
   let rerun = (newPSeed, newTSeed, config)
   putRerunInfo stdout rerun
-  ps <-
+  pnenv <-
     if | null (protocols config) && toolbox config ->
            pure toolboxEnvironment
        | null (protocols config) ->
@@ -72,12 +72,9 @@ runGenerator config = do
            selectProtocols (protocols config) toolboxEnvironment
        | otherwise ->
            selectProtocols (protocols config) protocolEnvironment
-  let pnenv = map (\p -> (prName p, prParameters p)) ps
-  -- let pnames = map prName ps
-  --     params = head (map prParameters ps)
   ts <- generateWithSeed newTSeed $ replicateM (count config) $ resize (tsize config) $
     genType TL [] pnenv
-  let m = Module ps ts
+  let m = Module pnenv ts
   let algstDoc = PA.runPretty $ PA.prettyModule m
   let freestDoc = PF.runPretty $ PF.prettyModule m
   case outputFile config of
