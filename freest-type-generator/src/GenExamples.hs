@@ -4,6 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module GenExamples (runGenerator, GenConfig(..)) where
 
+import Control.Monad
 import Data.Either (partitionEithers)
 import Data.Foldable
 import Data.List (intercalate)
@@ -41,16 +42,25 @@ toolboxEnvironment = [pSeq, pEither, pRepeat]
 resolveSeed :: Maybe Int -> IO Int
 resolveSeed = maybe randomIO pure
 
+type RerunInfo = (Int, Int, GenConfig)
+
+putRerunInfo :: Handle -> RerunInfo -> IO ()
+putRerunInfo h (ps, ts, config) = do
+  hPutStrLn h "--- Rerun with ---"
+  hPutStrLn h $ "--pseed=" ++ show ps
+  hPutStrLn h $ "--tseed=" ++ show ts
+  hPutStrLn h $ "--psize=" ++ show (psize config)
+  hPutStrLn h $ "--tsize=" ++ show (tsize config)
+  hPutStrLn h "------------------"
+  hPutStrLn h ""
+
 runGenerator :: GenConfig -> IO ()
 runGenerator config = do
   -- Generate protocols/select protocols.
   newPSeed <- resolveSeed (pseed config)
   newTSeed <- resolveSeed (tseed config)
-  putStrLn "--- Rerun with ---"
-  putStrLn $ "--pseed=" ++ show newPSeed
-  putStrLn $ "--tseed=" ++ show newTSeed
-  putStrLn $ "--psize=" ++ show (psize config)
-  putStrLn $ "--tsize=" ++ show (tsize config)
+  let rerun = (newPSeed, newTSeed, config)
+  putRerunInfo stdout rerun
   ps <-
     if | null (protocols config) && toolbox config ->
            pure toolboxEnvironment
@@ -63,8 +73,9 @@ runGenerator config = do
   let pnenv = map (\p -> (prName p, prParameters p)) ps
   -- let pnames = map prName ps
   --     params = head (map prParameters ps)
-  t <- generateWithSeed newTSeed $ genType (tsize config) TL [] pnenv
-  let m = Module ps [t]
+  ts <- generateWithSeed newTSeed $ replicateM 5 $
+    genType (tsize config) TL [] pnenv
+  let m = Module ps ts
   let algstDoc = PA.runPretty $ PA.prettyModule m
   let freestDoc = PF.runPretty $ PF.prettyModule m
   case outputFile config of
@@ -78,9 +89,11 @@ runGenerator config = do
       let algstPath = basePath <.> "algst"
       let freestPath = basePath <.> "fst"
       putStrLn $ "--- writing protocols and types in AlgST syntax to " ++ algstPath
-      withFile algstPath WriteMode (`hPutDoc` algstDoc)
+      withFile algstPath WriteMode \h ->
+        putRerunInfo h rerun >> hPutDoc h algstDoc
       putStrLn $ "--- writing corresponding types in FreeST syntax to " ++ freestPath
-      withFile freestPath WriteMode (`hPutDoc` freestDoc)
+      withFile freestPath WriteMode \h ->
+        putRerunInfo h rerun >> hPutDoc h freestDoc
 
 generateWithSeed :: Int -> Gen a -> IO a
 generateWithSeed seed gena =
