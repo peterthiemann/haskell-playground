@@ -22,7 +22,7 @@ prettySession = \case
   TyEnd d -> pure (text "End" <> pPrint d)
   TyDual b -> do
     pb <- prettySession b
-    pure $ parens (text "Dual" <+> pb)
+    pure $ parens (text "dual" <+> pb)
 
 prettyType :: Type -> R.Reader PPEnv Doc
 prettyType = \case
@@ -43,7 +43,7 @@ prettyType = \case
     pure $ parens (pf <+> comma <+> ps)
   TyPoly n k b -> do
     pb <- prettyType b
-    pure $ parens (text "forall" <+> parens (pPrint n <+> colon <+> pPrint k) <+> dot <+> pb)
+    pure $ parens (text "forall" <+> parens (pPrint n <> colon <> pPrint k) <> dot <+> pb)
   TySession s ->
     prettySession s
 
