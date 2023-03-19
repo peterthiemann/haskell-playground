@@ -18,7 +18,7 @@ prettySession = \case
   TyTransmit d t s -> do
     pt <- prettyTyProto t
     ps <- prettySession s
-    pure $ parens (pPrint d <+> pt <+> dot <+> ps)
+    pure $ parens (pPrint d <> pt <+> dot <+> ps)
   TyEnd d -> pure (text "End" <> pPrint d)
   TyDual b -> do
     pb <- prettySession b
@@ -56,6 +56,9 @@ prettyTyProto = \case
     pure $ parens (foldl (<+>) (pPrint n) pargs)
   TyPVar pv ->
     pure $ pPrint pv
+  TyNeg t -> do
+    t' <- prettyTyProto t
+    pure $ parens $ "-" <> t'
   TyType t ->
     prettyType t
 
@@ -82,8 +85,8 @@ prettyArgument arg = do
   pt <- prettyTyProto (argType arg)
   pure (pPrint (argPolarity arg) <> pt)
 
-prettyBenchmark :: Type -> Type -> R.Reader PPEnv Doc
-prettyBenchmark t u = do
+prettyBenchmark :: Two Type -> R.Reader PPEnv Doc
+prettyBenchmark (Two t u) = do
   pt <- prettyType t
   pu <- prettyType u
   pure $ vcat ["{-# BENCHMARK", pt, pu, "#-}"] <> nl
@@ -91,7 +94,7 @@ prettyBenchmark t u = do
 prettyModule :: Module -> R.Reader PPEnv Doc
 prettyModule (Module ps ts) = do
   pps <- mapM prettyProtocol ps
-  pts <- mapM (uncurry prettyBenchmark) ts
+  pts <- mapM prettyBenchmark ts
   pure (vcat pps $$ vcat pts)
 
 runPretty :: R.Reader PPEnv Doc -> Doc

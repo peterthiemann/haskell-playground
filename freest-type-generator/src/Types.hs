@@ -1,9 +1,20 @@
-{-# LANGUAGE LambdaCase, FlexibleContexts #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE LambdaCase #-}
 module Types where
 
 import Data.String
 import Test.QuickCheck
+
 import PrettyShared
+
+-- | Like @(a, a)@ but with a 'ZipList' like 'Applicative' instance.
+data Two a = Two a a
+  deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
+
+instance Applicative Two where
+  pure a = Two a a
+  Two fa fb <*> Two a b = Two (fa a) (fb b)
 
 -- type definitions for protocol definitions and types
 
@@ -53,6 +64,7 @@ data Argument =
 data TyProto =
     TyType { tyType :: Type }
   | TyPVar { tpVar :: Param }
+  | TyNeg { tpNeg :: TyProto }
   | TyApp { tpName :: Name
           , tyArgs :: [TyProto]
           }
@@ -88,7 +100,7 @@ data Type =
   | TySession { tySession :: TySession }
   deriving (Eq, Ord, Show)
 
-data Module = Module [Protocol] [(Type, Type)]
+data Module = Module [Protocol] [Two Type]
   deriving (Eq, Show)
 
 namedProtocol :: Protocol -> (Name, Protocol)
@@ -135,6 +147,7 @@ instance Subst TyProto where
       case lookup pv s of
         Nothing -> TyPVar pv
         Just proto -> proto
+    TyNeg ty -> TyNeg (subst s ty)
     TyApp pn pargs -> TyApp pn (map (subst s) pargs)
 
 instance Subst Constructor where

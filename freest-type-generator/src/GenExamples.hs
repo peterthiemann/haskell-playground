@@ -73,10 +73,10 @@ runGenerator config = do
        | otherwise ->
            selectProtocols (protocols config) protocolEnvironment
   ts <- generateWithSeed newTSeed $ replicateM (count config) $ resize (tsize config) $
-    genType TL [] pnenv
+    genType SL [] pnenv
   -- TODO: instead of producing pairs, generate a slightly different type if
   -- negative test cases are requested.
-  let m = Module pnenv (map (join (,)) ts)
+  let m = Module pnenv ts
   let algstDoc = PA.runPretty $ PA.prettyModule m
   let freestDoc = PF.runPretty $ PF.prettyModule m
   case outputFile config of

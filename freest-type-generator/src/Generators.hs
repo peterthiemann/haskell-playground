@@ -1,90 +1,154 @@
 {-# LANGUAGE BlockArguments #-}
-module Generators
-  (genType, genSession, genTyProto, genArgument, genCtor, genProtocol, genProtocols)
-where
 
-import Types
+module Generators (genType, genSession, genTyProto, genArgument, genCtor, genProtocol, genProtocols) where
 
-import Test.QuickCheck
 import Control.Monad
+import Data.Bifunctor
 import Data.Functor
+import Test.QuickCheck
+import Types
 
 -- number of protocol definitions
 genNrProtocols :: Gen Int
-genNrProtocols = choose (1, 2)
+genNrProtocols = choose (1, 3)
 
 -- protocol parameters
 genNrParameters :: Gen Int
-genNrParameters = choose (0, 2)
+genNrParameters = pure 0
 
 baseTypeNames :: [Name]
-baseTypeNames = map Name ["Int", "Char", "String", "()"]
+baseTypeNames = map Name ["Int", "Char", "String"]
 
 allDifferent :: Eq a => [a] -> Bool
 allDifferent [] = True
 allDifferent (x : xs) = x `notElem` xs && allDifferent xs
 
-genType :: Kind -> [(Param, Kind)] -> [Protocol] -> Gen Type
+genType :: Kind -> [(Two Param, Kind)] -> [Protocol] -> Gen (Two Type)
 genType ofK tvenv pnenv = sized \size -> do
-  let size2 = size `div` 2
-      genType2 k tvenv' = resize size2 . genType k tvenv'
-      freqTyVar = case [ n | (n, k) <- tvenv, subkind k ofK ] of
-        [] -> []
-        tvnames ->
-          [(1, pure TyVar <*> elements tvnames)]
-      freqTyArrowUnitBasePair
-        | subkind TU ofK =
-          [(size, pure TyArrow <*> genType2 TL tvenv pnenv <*> genType2 TL tvenv pnenv)
-          ,(1, pure TyUnit)
-          ,(1, pure TyBase <*> elements baseTypeNames)
-          ,(size, pure TyPair <*> genType2 ofK tvenv pnenv <*> genType2 ofK tvenv pnenv)]
-        | otherwise = []
-      freqTyLolli
-        | subkind TL ofK =
-          [(size, pure TyLolli <*> genType2 TL tvenv pnenv <*> genType2 TL tvenv pnenv)]
-        | otherwise = []
-      freqTyPoly
-        | subkind TU ofK = [
-            (size2, do tv <- arbitrary
-                       ki <- arbitrary
-                       pure (TyPoly tv ki) <*> genType2 ofK ((tv, ki) : tvenv) pnenv)]
-        | otherwise = []
-      freqTySession
-        | subkind SL ofK =
-          [(2 * size + 1, pure TySession <*> genSession tvenv pnenv)]
-        | otherwise = []
-  frequency $
-    freqTyVar ++
-    freqTyArrowUnitBasePair ++
-    freqTyLolli ++
-    freqTyPoly ++
-    freqTySession
+  (a, b) <- decrSize splitSize
+  let sizedA = resize a
+      sizedB = resize b
 
-genSession :: [(Param, Kind)] -> [Protocol] -> Gen TySession
+  let tyvar :: [Two Type]
+      tyvar = [TyVar <$> n | (n, k) <- tvenv, k `subkind` ofK]
+
+  let baseTy :: [Two Type]
+      baseTy = Two TyUnit TyUnit : [pure (TyBase n) | n <- baseTypeNames]
+
+  let pairTy :: Gen (Two Type)
+      pairTy = do
+        t <- sizedA (genType ofK tvenv pnenv)
+        u <- sizedB (genType ofK tvenv pnenv)
+        pure $ TyPair <$> t <*> u
+
+  let arrowTy :: (Type -> Type -> Type) -> Gen (Two Type)
+      arrowTy con = do
+        t <- sizedA (genType TL tvenv pnenv)
+        u <- sizedB (genType TL tvenv pnenv)
+        pure $ con <$> t <*> u
+
+  let polyTy :: Gen (Two Type)
+      polyTy = do
+        let v1 =
+              arbitrary `suchThat` \x ->
+                x `notElem` [v | (Two v _, _) <- tvenv]
+        let v2 =
+              arbitrary `suchThat` \x ->
+                x `notElem` [v | (Two _ v, _) <- tvenv]
+        tv <- Two <$> v1 <*> v2
+        k <- arbitrary
+        t <- decrSize $ genType TL ((tv, k) : tvenv) pnenv
+        pure $ TyPoly <$> tv <*> pure k <*> t
+
+  let sessionTy :: Gen (Two Type)
+      sessionTy = do
+        t <- genSession tvenv pnenv
+        pure $ TySession <$> t
+
+  let ifSubkind k' g
+        | k' `subkind` ofK = [g]
+        | otherwise = []
+
+  if size <= 1
+    then do
+      elements (tyvar ++ baseTy)
+    else do
+      oneof $
+        ifSubkind TU pairTy
+          ++ ifSubkind TU polyTy
+          ++ ifSubkind TU (arrowTy TyArrow)
+          ++ ifSubkind TL (arrowTy TyLolli)
+          ++ ifSubkind SL sessionTy
+
+decrSize :: Gen a -> Gen a
+decrSize = scale \n -> max 0 (n - 1)
+
+splitSize :: Gen (Int, Int)
+splitSize = sized \size -> do
+  a <- chooseInt (0, size)
+  pure (a, size - a)
+
+genSession :: [(Two Param, Kind)] -> [Protocol] -> Gen (Two TySession)
 genSession tvenv pnenv = do
-  params <- sizedParams <&> \p -> p `withMode` 3
-  steps <- genListOf params stepGen
-  stop <- stopGen
-  pure $ foldr ($) stop steps
+  params <- sizedParams <&> \p -> p `withMode` 4
+  sizes <- genSizePartition params
+  go False sizes
   where
-    stepGen = TyTransmit <$> arbitrary <*> genTyProto tvenv pnenv
-    stopGen = case [ n | (n, k) <- tvenv, subkind k SL ] of
-      [] -> TyEnd <$> arbitrary
-      names -> SeVar <$> elements names
+    go :: Bool -> [Int] -> Gen (Two TySession)
+    go pendingDual [] = do
+      let endChoices = pure . TyEnd <$> arbitrary
+      let varChoices = [pure (SeVar <$> n) | (n, k) <- tvenv, subkind k SL]
+      Two end1 end2 <- oneof (endChoices : varChoices)
+      pure $ Two end1 $ if pendingDual then TyDual end2 else end2
+    go pendingDual0 (sz0 : szs) = do
+      (wrap, pendingDual, sz) <- elements do
+        (id, pendingDual0, sz0) : [(TyDual, not pendingDual0, sz0 - 1) | sz0 > 1]
+      transmit <- genTransmit pendingDual
+      payload <- resize sz (genTyProto tvenv pnenv)
+      rest <-
+        oneof
+          [ go pendingDual szs,
+            go (not pendingDual) szs <&> \(Two a b) -> Two a (TyDual b)
+          ]
+      pure $ Two wrap id <*> (transmit <*> payload <*> rest)
 
-genTyProto :: [(Param, Kind)] -> [Protocol] -> Gen TyProto
-genTyProto tvenv pnenv = sized \sz -> frequency
-  [ (sz,
-        do p <- elements pnenv
-           sizes <- genSizePartitionN $ length $ prParameters p
-           args <- eachSize sizes (genTyProto tvenv pnenv)
-           pure $ TyApp (prName p) args)
-  , (2, pure TyType <*> genType TL tvenv pnenv)
-  ]
+    genTransmit :: Bool -> Gen (Two (TyProto -> TySession -> TySession))
+    genTransmit pendingDual =
+      oneof
+        [ do
+            d <- arbitrary
+            let d' = if pendingDual then dualDirection d else d
+            pure $ Two (TyTransmit d) (TyTransmit d'),
+          do
+            d <- arbitrary
+            let d' = if pendingDual then dualDirection d else d
+            pure $ Two (TyTransmit d) (TyTransmit (dualDirection d') . TyNeg)
+        ]
+
+genTyProto :: [(Two Param, Kind)] -> [Protocol] -> Gen (Two TyProto)
+genTyProto tvenv pnenv = sized \size -> do
+  let pureTy = do
+        t <- genType TL tvenv pnenv
+        pure $ TyType <$> t
+  let negTy = do
+        t <- decrSize $ genTyProto tvenv pnenv
+        pure $ TyNeg <$> t
+  let appTy = do
+        p <- elements pnenv
+        sizes <- decrSize $ genSizePartitionN $ length $ prParameters p
+        args <- sequenceA <$> eachSize sizes (genTyProto tvenv pnenv)
+        pure $ TyApp (prName p) <$> args
+  frequency . concat $
+    [ [(1, pureTy)],
+      [(3, pureTy) | size > 1],
+      [(1, negTy) | size > 1],
+      [(1, appTy) | not (null pnenv)]
+    ]
 
 genArgument :: [(Param, Kind)] -> [Protocol] -> Gen Argument
-genArgument tvenv pnenv = do
-  Argument <$> arbitrary <*> genTyProto tvenv pnenv
+genArgument tvenv pnenv = Argument <$> arbitrary <*> genTy
+  where
+    genTy = genTyProto (first pure <$> tvenv) pnenv <&> \(Two a _) -> a
 
 genCtor :: [(Param, Kind)] -> [Protocol] -> Gen Constructor
 genCtor tvenv pnenv = do
@@ -108,7 +172,7 @@ genProtocols = do
       pure $ Protocol name params []
     completeProto penv p = do
       ctors <- genProtocol penv
-      pure p{ prCtors = ctors }
+      pure p {prCtors = ctors}
 
 -------------------------------------------------------------------------------
 -- The below code is adapted from genvalidity:
@@ -168,7 +232,7 @@ genSizePartitionN len = sized \size -> do
     invE :: Double -> Double -> Double
     invE lambda u = (-log (1 - u)) / lambda
 
-genListLength ::  ListParams -> Gen Int
+genListLength :: ListParams -> Gen Int
 genListLength (pmin, pmode, pmax) =
   round . invT <$> choose (0, 1)
   where

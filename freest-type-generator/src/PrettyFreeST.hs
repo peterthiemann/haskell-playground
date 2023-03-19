@@ -118,9 +118,11 @@ prettyAsProtocol d = \case
     prettyProtocol d n args
   TyPVar pv ->
     pure $ pParam pv
+  TyNeg t ->
+    prettyAsProtocol (dualDirection d) t
   TyType t -> do
     pt <- prettyType t
-    pure $ parens (pPrint d <+> pt)
+    pure $ parens (pPrint d <> pt)
 
 prettyProtocol :: Direction -> Name -> [ TyProto ] -> R.Reader PPEnv Doc
 prettyProtocol d pn ts = do
@@ -170,8 +172,8 @@ prettyArgument d arg = do
         Minus -> dualDirection d
   prettyAsProtocol d' (argType arg)
 
-prettyBenchmark :: Type -> Type -> R.Reader PPEnv Doc
-prettyBenchmark t u = do
+prettyBenchmark :: Two Type -> R.Reader PPEnv Doc
+prettyBenchmark (Two t u) = do
   pt <- prettyType t
   pu <- prettyType u
   pure $ pt $$ pu
@@ -179,7 +181,7 @@ prettyBenchmark t u = do
 prettyModule :: Module -> R.Reader PPEnv Doc
 prettyModule (Module ps ts) = do
   pts <- R.local (\ ppenv -> ppenv { ppProto = ps }) do
-    mapM (uncurry prettyBenchmark) ts
+    mapM prettyBenchmark ts
   pure $ vcat (punctuate nl pts)
 
 runPretty :: R.Reader PPEnv Doc -> Doc
