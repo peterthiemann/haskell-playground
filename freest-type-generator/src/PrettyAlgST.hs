@@ -62,9 +62,11 @@ prettyTyProto = \case
 prettyProtocol :: Protocol -> R.Reader PPEnv Doc
 prettyProtocol p = do
   pctors <- mapM prettyConstructor (prCtors p)
+  let prparam param =
+        parens (pPrint param <> colon <> "P")
   let prhead =
         "protocol"
-          <+> foldl (<+>) (pPrint (prName p)) (map pPrint (prParameters p))
+          <+> foldl (<+>) (pPrint (prName p)) (prparam <$> prParameters p)
           <+> equals
   let prdef = vcat $
         prhead : ["  " <> bar <+> ctor | ctor <- pctors]
