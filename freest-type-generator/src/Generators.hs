@@ -1,10 +1,26 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE LambdaCase #-}
 
-module Generators (genType, genSession, genTyProto, genArgument, genCtor, genProtocol, genProtocols) where
+module Generators
+  ( genType,
+    genSession,
+    genTyProto,
+    genArgument,
+    genCtor,
+    genProtocol,
+    genProtocols,
+    Variations (..),
+    genVariant,
+  )
+where
 
 import Control.Monad
 import Data.Bifunctor
 import Data.Functor
+import Data.Map qualified as M
+import Data.Set qualified as S
 import Test.QuickCheck
 import Types
 
@@ -144,6 +160,50 @@ genTyProto tvenv pnenv = sized \size -> do
       [(1, negTy) | size > 1],
       [(1, appTy) | not (null pnenv)]
     ]
+
+class Variations a where
+  listVariations :: M.Map Param Kind -> a -> [a]
+
+genVariant :: Variations a => a -> Gen a
+genVariant = elements . listVariations M.empty
+
+instance Variations Type where
+  listVariations !vs ty =
+    baseTypeVariation ty ++ case ty of
+      TyVar _ -> []
+      TyUnit -> []
+      TyBase _ -> []
+      TyLolli t u -> arrowVariation TyLolli TyArrow t u
+      TyArrow t u -> arrowVariation TyArrow TyLolli t u
+      TyPair t u -> t : u : [TyPair t' u | t' <- listVariations vs t] ++ [TyPair t u' | u' <- listVariations vs u]
+      TyPoly p k t -> [t | p `S.notMember` free t] ++ [TyPoly p k t' | t' <- listVariations (M.insert p k vs) t]
+      TySession s -> [TySession s' | s' <- listVariations vs s]
+    where
+      baseTypeVariation t =
+        filter (t /=) $ TyUnit : fmap TyBase baseTypeNames ++ [TyVar v | (v, k) <- M.toList vs, TU `subkind` k]
+      arrowVariation a1 a2 t u =
+        a2 t u : [a1 t' u | t' <- listVariations vs t] ++ [a1 t u' | u' <- listVariations vs u]
+
+instance Variations TySession where
+  listVariations vs = go
+    where
+      baseVariations t =
+        filter (t /=) $ [SeVar v | (v, k) <- M.toList vs, SL `subkind` k]
+      go ty =
+        baseVariations ty ++ case ty of
+          SeVar _ -> []
+          TyTransmit d p s -> TyTransmit (dualDirection d) p s : s : [TyTransmit d p s' | s' <- go s] ++ [TyTransmit d p' s | p' <- listVariations vs p]
+          TyEnd _ -> [] -- Don't flip the direction here, as this difference does not translate to FreeST.
+          TyDual s -> s : [TyDual s' | s' <- go s]
+
+instance Variations TyProto where
+  listVariations vs = go
+    where
+      go = \case
+        TyType t -> [TyType t' | t' <- listVariations vs t]
+        TyPVar _ -> [] -- Not generated.
+        TyNeg t -> t : [TyNeg t' | t' <- go t]
+        TyApp {} -> [] -- Simplification.
 
 genArgument :: [(Param, Kind)] -> [Protocol] -> Gen Argument
 genArgument tvenv pnenv = Argument <$> arbitrary <*> genTy

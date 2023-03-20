@@ -29,6 +29,7 @@ data GenConfig = GenConfig
   , pseed :: Maybe Int
   , tseed :: Maybe Int
   , count :: Int
+  , negative :: Bool
   , toolbox :: Bool
   , outputFile :: Maybe FilePath
   , protocols :: [String]
@@ -53,6 +54,8 @@ putRerunInfo h (ps, ts, config) = do
   hPutStrLn h $ "--psize=" ++ show (psize config)
   hPutStrLn h $ "--tsize=" ++ show (tsize config)
   hPutStrLn h $ "--count=" ++ show (count config)
+  when (negative config) do
+    hPutStrLn h "--negative"
   hPutStrLn h "------------------"
   hPutStrLn h ""
 
@@ -72,10 +75,9 @@ runGenerator config = do
            selectProtocols (protocols config) toolboxEnvironment
        | otherwise ->
            selectProtocols (protocols config) protocolEnvironment
-  ts <- generateWithSeed newTSeed $ replicateM (count config) $ resize (tsize config) $
-    genType SL [] pnenv
-  -- TODO: instead of producing pairs, generate a slightly different type if
-  -- negative test cases are requested.
+  ts <- generateWithSeed newTSeed $ replicateM (count config) $ resize (tsize config) do
+    Two t u <- genType SL [] pnenv
+    Two t <$> if negative config then genVariant u else pure u
   let m = Module pnenv ts
   let algstDoc = PA.runPretty $ PA.prettyModule True m
   let freestDoc = PF.runPretty $ PF.prettyModule m

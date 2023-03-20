@@ -41,11 +41,17 @@ argTseed = optional . option auto $
 argCount :: Parser Int
 argCount = option auto
            ( long "count"
-           <> short 'n'
+           <> short 'N'
            <> metavar "N"
            <> value 1
            <> showDefault
            <> help "Generate N pairs of types to benchmark" )
+
+argNegative :: Parser Bool
+argNegative = switch
+              ( long "negative"
+              <> short 'n'
+              <> help "Generate negative test cases" )
 
 argOutput :: Parser (Maybe FilePath)
 argOutput = optional . strOption $
@@ -70,6 +76,7 @@ cmdLineArgs = GenConfig
               <*> argPseed
               <*> argTseed
               <*> argCount
+              <*> argNegative
               <*> argToolbox
               <*> argOutput
               <*> argProtocols
