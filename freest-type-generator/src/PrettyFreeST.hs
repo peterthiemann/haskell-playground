@@ -85,7 +85,7 @@ prettySession = \case
 
 prettyType :: Type -> R.Reader PPEnv Doc
 prettyType = \case
-  TyVar n -> do
+  TyVar n _ -> do
     defs <- askDefs
     case lookup n defs of
       Nothing ->

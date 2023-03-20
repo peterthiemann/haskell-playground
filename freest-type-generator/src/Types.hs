@@ -1,15 +1,12 @@
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 module Types where
 
 import Data.String
 import Test.QuickCheck
-import Data.Set qualified as S
 
 import PrettyShared
-import Data.Foldable
 
 -- | Like @(a, a)@ but with a 'ZipList' like 'Applicative' instance.
 data Two a = Two a a
@@ -84,7 +81,9 @@ data TySession =
   deriving (Eq, Ord, Show)
 
 data Type =
-    TyVar { tyParam :: Param }
+    TyVar { tyParam :: Param
+          , tyKind :: Kind
+          }
   | TyUnit
   | TyBase { tyName :: Name }
   | TyLolli { tyArg :: Type
@@ -102,6 +101,19 @@ data Type =
            }
   | TySession { tySession :: TySession }
   deriving (Eq, Ord, Show)
+
+typeKind :: Type -> Kind
+typeKind = \case
+  TyVar _ k -> k
+  TyUnit -> TU
+  TyBase _ -> TU
+  TyLolli{} -> TL
+  TyArrow{} -> TU
+  TyPair t u
+    | typeKind t == TU && typeKind u == TU -> TU
+    | otherwise -> TL
+  TyPoly{} -> TU
+  TySession _ -> SL
 
 data Module = Module [Protocol] [Two Type]
   deriving (Eq, Show)
@@ -124,7 +136,7 @@ class Subst t where
 
 instance Subst Type where
   subst s = \case
-    TyVar parm -> TyVar parm
+    TyVar parm k -> TyVar parm k
     TyUnit -> TyUnit
     TyBase n -> TyBase n
     TyLolli t1 t2 -> TyLolli (subst s t1) (subst s t2)
@@ -164,12 +176,13 @@ instance Subst Argument where
 instance Subst x => Subst [x] where
   subst s = map (subst s)
 
+{-
 class Free t where
   free :: t -> S.Set Param
 
 instance Free Type where
   free = \case
-    TyVar parm -> S.singleton parm
+    TyVar parm _ -> S.singleton parm
     TyUnit -> S.empty
     TyBase _ -> S.empty
     TyLolli t1 t2 -> S.union (free t1) (free t2)
@@ -191,6 +204,7 @@ instance Free TyProto where
     TyPVar pv -> S.singleton pv
     TyApp _ pargs -> foldl' S.union S.empty (map free pargs)
     TyNeg ty -> free ty
+-}
 
 ----------------------------------------------------------------------
 -- instances for PP

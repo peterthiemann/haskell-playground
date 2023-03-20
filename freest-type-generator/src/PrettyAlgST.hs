@@ -26,7 +26,7 @@ prettySession = \case
 
 prettyType :: Type -> R.Reader PPEnv Doc
 prettyType = \case
-  TyVar n -> pure $ pPrint n
+  TyVar n _ -> pure $ pPrint n
   TyUnit  -> pure $ text "()"
   TyBase n -> pure $ pPrint n
   TyArrow a r -> do

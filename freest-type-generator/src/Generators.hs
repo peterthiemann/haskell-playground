@@ -20,7 +20,6 @@ import Control.Monad
 import Data.Bifunctor
 import Data.Functor
 import Data.Map qualified as M
-import Data.Set qualified as S
 import Test.QuickCheck
 import Types
 
@@ -46,7 +45,7 @@ genType ofK tvenv pnenv = sized \size -> do
       sizedB = resize b
 
   let tyvar :: [Two Type]
-      tyvar = [TyVar <$> n | (n, k) <- tvenv, k `subkind` ofK]
+      tyvar = [TyVar <$> n <*> pure k | (n, k) <- tvenv, k `subkind` ofK]
 
   let baseTy :: [Two Type]
       baseTy = Two TyUnit TyUnit : [pure (TyBase n) | n <- baseTypeNames]
@@ -169,20 +168,22 @@ genVariant = elements . listVariations M.empty
 
 instance Variations Type where
   listVariations !vs ty =
-    baseTypeVariation ty ++ case ty of
-      TyVar _ -> []
+    baseTypeVariation ++ case ty of
+      TyVar _ _ -> []
       TyUnit -> []
       TyBase _ -> []
-      TyLolli t u -> arrowVariation TyLolli TyArrow t u
-      TyArrow t u -> arrowVariation TyArrow TyLolli t u
-      TyPair t u -> t : u : [TyPair t' u | t' <- listVariations vs t] ++ [TyPair t u' | u' <- listVariations vs u]
-      TyPoly p k t -> [t | p `S.notMember` free t] ++ [TyPoly p k t' | t' <- listVariations (M.insert p k vs) t]
+      TyLolli t u -> binVariation TyLolli t u
+      TyArrow t u -> binVariation TyArrow t u
+      TyPair t u -> binVariation TyPair t u
+      TyPoly p k t -> [TyPoly p k' ty | k' <- [minBound .. maxBound]] ++ [TyPoly p k t' | t' <- listVariations (M.insert p k vs) t]
       TySession s -> [TySession s' | s' <- listVariations vs s]
     where
-      baseTypeVariation t =
-        filter (t /=) $ TyUnit : fmap TyBase baseTypeNames ++ [TyVar v | (v, k) <- M.toList vs, TU `subkind` k]
-      arrowVariation a1 a2 t u =
-        a2 t u : [a1 t' u | t' <- listVariations vs t] ++ [a1 t u' | u' <- listVariations vs u]
+      suitableReplacement t =
+        typeKind ty == typeKind t && ty /= t
+      baseTypeVariation = filter suitableReplacement do
+        TyUnit : fmap TyBase baseTypeNames ++ (uncurry TyVar <$> M.toList vs)
+      binVariation c t u =
+        [c t' u | t' <- listVariations vs t] ++ [c t u' | u' <- listVariations vs u]
 
 instance Variations TySession where
   listVariations vs = go
@@ -202,7 +203,10 @@ instance Variations TyProto where
       go = \case
         TyType t -> [TyType t' | t' <- listVariations vs t]
         TyPVar _ -> [] -- Not generated.
-        TyNeg t -> t : [TyNeg t' | t' <- go t]
+        TyNeg t ->
+          -- Dropping a negation might mess with the kinds. We can achieve the
+          -- same effect by adding an additional negation.
+          TyNeg (TyNeg t) : [TyNeg t' | t' <- go t]
         TyApp {} -> [] -- Simplification.
 
 genArgument :: [(Param, Kind)] -> [Protocol] -> Gen Argument
@@ -212,7 +216,7 @@ genArgument tvenv pnenv = Argument <$> arbitrary <*> genTy
 
 genCtor :: [(Param, Kind)] -> [Protocol] -> Gen Constructor
 genCtor tvenv pnenv = do
-  lps <- sized \n -> pure (0, min n 2, min n 4)
+  lps <- decrSize $ sizedParams <&> \lps -> lps `withMax` 4
   Constructor <$> arbitrary <*> genListOf lps (genArgument tvenv pnenv)
 
 genProtocol :: [Protocol] -> Gen [Constructor]
@@ -257,12 +261,12 @@ type ListParams = (Int, Int, Int)
 sizedParams :: Gen ListParams
 sizedParams = sized \n -> pure (0, min n 2, n)
 
-{-
--- | Adjusts 'ListParams' minimum whilst ensuring the 'ListParams' invariant (by
--- adjusting mode and max upwards).
-withMin :: ListParams -> Int -> ListParams
-withMin (_, pmode, pmax) newMin = (newMin, max newMin pmode, max newMin pmax)
--}
+-- | Adjusts 'ListParams' maximum downwards whilst ensuring the 'ListParams'
+-- invariant (by adjusting mode and min downwards, if necessary).
+withMax :: ListParams -> Int -> ListParams
+withMax (pmin, pmode, pmax) newMax =
+  let pmax' = min pmax newMax
+   in (min pmin pmax', min pmode pmax', pmax')
 
 -- | Adjusts 'ListParams' mode whilst ensuring the 'ListParams' invariant (by
 -- not changing the mode to much).
