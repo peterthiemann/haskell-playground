@@ -77,7 +77,7 @@ runGenerator config = do
   -- TODO: instead of producing pairs, generate a slightly different type if
   -- negative test cases are requested.
   let m = Module pnenv ts
-  let algstDoc = PA.runPretty $ PA.prettyModule m
+  let algstDoc = PA.runPretty $ PA.prettyModule True m
   let freestDoc = PF.runPretty $ PF.prettyModule m
   case outputFile config of
     Nothing -> do

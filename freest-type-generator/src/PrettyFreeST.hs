@@ -36,8 +36,8 @@ data PPEnv =
         , ppGen   :: Integer
         }
 
-pushDef :: Param -> Doc -> PPEnv -> PPEnv
-pushDef n d ppenv = ppenv { ppDefs = (n, d) : ppDefs ppenv }
+--pushDef :: Param -> Doc -> PPEnv -> PPEnv
+--pushDef n d ppenv = ppenv { ppDefs = (n, d) : ppDefs ppenv }
 
 pushDefs :: [Param] -> [Doc] -> PPEnv -> PPEnv
 pushDefs ns ds ppenv = ppenv { ppDefs = zip ns ds ++ ppDefs ppenv }

@@ -3,11 +3,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 module PrettyAlgST (prettyType, prettyModule, runPretty) where
 
+import Control.Monad
 import Control.Monad.Reader qualified as R
 
 import PrettyShared
 import Types
-
 
 data PPEnv =
   PPENV
@@ -85,16 +85,39 @@ prettyArgument arg = do
   pt <- prettyTyProto (argType arg)
   pure (pPrint (argPolarity arg) <> pt)
 
-prettyBenchmark :: Two Type -> R.Reader PPEnv Doc
-prettyBenchmark (Two t u) = do
+prettyBenchmark :: Bool -> Int -> Two Type -> R.Reader PPEnv Doc
+prettyBenchmark eqChecks i (Two t u) = do
   pt <- prettyType t
   pu <- prettyType u
-  pure $ vcat ["{-# BENCHMARK", pt, pu, "#-}"] <> nl
+  let tn c = "T" <> intDoc i <> c
+      eqfn c = "eq" <> intDoc i <> c
+  let typeDoc = vcat
+        [ "type" <+> tn "a" <+> equals <+> pt
+        , "type" <+> tn "b" <+> equals <+> pu
+        , ""
+        ]
+  let benchDoc = vcat
+        [ "{-# BENCHMARK"
+        , tn "a"
+        , tn "b"
+        , "#-}"
+        , ""
+        ]
+  let eqDoc = vcat
+        [ eqfn "a" <+> colon <+> tn "a" <+> "->" <+> tn "b"
+        , eqfn "a" <+> "x" <+> equals <+> "x"
+        , eqfn "b" <+> colon <+> tn "b" <+> "->" <+> tn "a"
+        , eqfn "b" <+> "x" <+> equals <+> "x"
+        , ""
+        ]
+  pure $ if eqChecks
+    then typeDoc $$ eqDoc $$ benchDoc
+    else typeDoc $$ benchDoc
 
-prettyModule :: Module -> R.Reader PPEnv Doc
-prettyModule (Module ps ts) = do
+prettyModule :: Bool -> Module -> R.Reader PPEnv Doc
+prettyModule eqChecks (Module ps ts) = do
   pps <- mapM prettyProtocol ps
-  pts <- mapM prettyBenchmark ts
+  pts <- zipWithM (prettyBenchmark eqChecks) [1..] ts
   pure (vcat pps $$ vcat pts)
 
 runPretty :: R.Reader PPEnv Doc -> Doc

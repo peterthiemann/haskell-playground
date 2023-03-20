@@ -16,6 +16,9 @@ class Pretty a where
 text :: String -> Doc
 text = Doc . stringUtf8
 
+intDoc :: Int -> Doc
+intDoc = Doc . intDec
+
 (<+>) :: Doc -> Doc -> Doc
 x <+> y = x <> space <> y
 
