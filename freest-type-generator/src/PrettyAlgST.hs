@@ -18,7 +18,7 @@ prettySession = \case
   TyTransmit d t s -> do
     pt <- prettyTyProto t
     ps <- prettySession s
-    pure $ parens (pPrint d <> pt <+> dot <+> ps)
+    pure $ parens (pPrint d <+> pt <+> dot <+> ps)
   TyEnd d -> pure (text "End" <> pPrint d)
   TyDual b -> do
     pb <- prettySession b

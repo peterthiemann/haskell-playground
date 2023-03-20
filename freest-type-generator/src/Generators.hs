@@ -215,9 +215,14 @@ genArgument tvenv pnenv = Argument <$> arbitrary <*> genTy
     genTy = genTyProto (first pure <$> tvenv) pnenv <&> \(Two a _) -> a
 
 genCtor :: [(Param, Kind)] -> [Protocol] -> Gen Constructor
-genCtor tvenv pnenv = do
-  lps <- decrSize $ sizedParams <&> \lps -> lps `withMax` 4
-  Constructor <$> arbitrary <*> genListOf lps (genArgument tvenv pnenv)
+genCtor tvenv pnenv = decrSize do
+  -- Ensure contractiveness on the FreeST side by generating the first argument
+  -- with an empty protocol environment.
+  lps <- sizedParams <&> \lps -> lps `withMax` 4
+  argSizes <- genSizePartition lps
+  Constructor <$> arbitrary <*> case argSizes of
+    [] -> pure []
+    sz : szs -> (:) <$> resize sz (genArgument tvenv []) <*> eachSize szs (genArgument tvenv pnenv)
 
 genProtocol :: [Protocol] -> Gen [Constructor]
 genProtocol pnenv =
