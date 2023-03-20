@@ -79,7 +79,7 @@ runGenerator config = do
     Two t u <- genType SL [] pnenv
     Two t <$> if negative config then genVariant u else pure u
   let m = Module pnenv ts
-  let algstDoc = PA.runPretty $ PA.prettyModule True m
+  let algstDoc = PA.runPretty $ PA.prettyModule (not (negative config)) m
   let freestDoc = PF.runPretty $ PF.prettyModule m
   case outputFile config of
     Nothing -> do
