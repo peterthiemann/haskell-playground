@@ -215,11 +215,11 @@ instance Subst TyProto where
         Nothing -> TyPVar pv
         Just proto -> proto
     TyNeg ty -> TyNeg (subst s ty)
-    TyApp pn pargs -> TyApp pn (map (subst s) pargs)
+    TyApp pn pargs -> TyApp pn (subst s pargs)
 
 instance Subst Constructor where
   subst s = \case
-    Constructor n args -> Constructor n (map (subst s) args)
+    Constructor n args -> Constructor n (subst s args)
 
 instance Subst Argument where
   subst s = \case
