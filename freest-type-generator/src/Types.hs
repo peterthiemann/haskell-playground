@@ -126,6 +126,41 @@ dualDirection Input = Output
 dualDirection Output = Input
 
 ----------------------------------------------------------------------
+-- sizeOf
+----------------------------------------------------------------------
+
+class SizeOf t where
+  sizeOf :: t -> Int
+
+instance SizeOf Type where
+  sizeOf = \case
+    TyVar _ _ -> 1
+    TyUnit -> 1
+    TyBase _n -> 1
+    TyLolli t1 t2 -> 1 + (sizeOf t1) + (sizeOf t2)
+    TyArrow t1 t2 -> 1 + (sizeOf t1) + (sizeOf t2)
+    TyPair  t1 t2 -> 1 + (sizeOf t1) + (sizeOf t2)
+    TyPoly _parm _k ty -> 1 + sizeOf ty
+    TySession ts -> sizeOf ts
+
+instance SizeOf TySession where
+  sizeOf = \case
+    SeVar _parm -> 1
+    TyTransmit _d tp tc ->
+      1 + sizeOf tp + sizeOf tc
+    TyEnd _d ->
+      1
+    TyDual sy ->
+      1 + sizeOf sy
+
+instance SizeOf TyProto where
+  sizeOf = \case
+    TyType ty -> sizeOf ty
+    TyPVar _pv -> 1
+    TyNeg ty -> 1 + (sizeOf ty)
+    TyApp _pn pargs -> foldr ((+) . sizeOf) 1 pargs
+
+----------------------------------------------------------------------
 -- substitution
 ----------------------------------------------------------------------
 
