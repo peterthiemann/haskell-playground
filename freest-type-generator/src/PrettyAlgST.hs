@@ -1,18 +1,16 @@
-{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 module PrettyAlgST (prettyType, prettyModule, runPretty) where
 
 import Control.Monad
-import Control.Monad.Reader qualified as R
+import Data.Functor.Identity
 
 import PrettyShared
 import Types
 
-data PPEnv =
-  PPENV
+type PrettyM = Identity
 
-prettySession :: TySession -> R.Reader PPEnv Doc
+prettySession :: TySession -> PrettyM Doc
 prettySession = \case
   SeVar n -> pure $ pPrint n
   TyTransmit d t s -> do
@@ -24,7 +22,7 @@ prettySession = \case
     pb <- prettySession b
     pure $ parens (text "dual" <+> pb)
 
-prettyType :: Type -> R.Reader PPEnv Doc
+prettyType :: Type -> PrettyM Doc
 prettyType = \case
   TyVar n _ -> pure $ pPrint n
   TyUnit  -> pure $ text "()"
@@ -47,7 +45,7 @@ prettyType = \case
   TySession s ->
     prettySession s
 
-prettyTyProto :: TyProto -> R.Reader PPEnv Doc
+prettyTyProto :: TyProto -> PrettyM Doc
 prettyTyProto = \case
   TyApp n [] -> do
     pure $ pPrint n
@@ -62,7 +60,7 @@ prettyTyProto = \case
   TyType t ->
     prettyType t
 
-prettyProtocol :: Protocol -> R.Reader PPEnv Doc
+prettyProtocol :: Protocol -> PrettyM Doc
 prettyProtocol p = do
   pctors <- mapM prettyConstructor (prCtors p)
   let prparam param =
@@ -75,17 +73,17 @@ prettyProtocol p = do
         prhead : ["  " <> bar <+> ctor | ctor <- pctors]
   pure $ prdef <> nl
 
-prettyConstructor :: Constructor -> R.Reader PPEnv Doc
+prettyConstructor :: Constructor -> PrettyM Doc
 prettyConstructor c = do
   pargs <- mapM prettyArgument (ctArgs c)
   pure $ foldl (<+>) (pPrint (ctName c)) pargs
 
-prettyArgument :: Argument -> R.Reader PPEnv Doc
+prettyArgument :: Argument -> PrettyM Doc
 prettyArgument arg = do
   pt <- prettyTyProto (argType arg)
   pure (pPrint (argPolarity arg) <> pt)
 
-prettyBenchmark :: Bool -> Int -> Two Type -> R.Reader PPEnv Doc
+prettyBenchmark :: Bool -> Int -> Two Type -> PrettyM Doc
 prettyBenchmark eqChecks i (Two t u) = do
   pt <- prettyType t
   pu <- prettyType u
@@ -114,11 +112,11 @@ prettyBenchmark eqChecks i (Two t u) = do
     then typeDoc $$ eqDoc $$ benchDoc
     else typeDoc $$ benchDoc
 
-prettyModule :: Bool -> Module -> R.Reader PPEnv Doc
+prettyModule :: Bool -> Module -> PrettyM Doc
 prettyModule eqChecks (Module ps ts) = do
   pps <- mapM prettyProtocol ps
   pts <- zipWithM (prettyBenchmark eqChecks) [1..] ts
   pure (vcat pps $$ vcat pts)
 
-runPretty :: R.Reader PPEnv Doc -> Doc
-runPretty = flip R.runReader PPENV
+runPretty :: PrettyM Doc -> Doc
+runPretty = runIdentity

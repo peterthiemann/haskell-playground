@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 module PrettyFreeST (prettyType, prettyModule, runPretty) where
 
 import qualified Control.Monad.Reader as R
@@ -18,6 +19,8 @@ import PrettyShared
 -- shaky for parameterized ones:
 --  it should instantiate the parameters before looking up, but right now it only has the text of the instantiation
 
+type PrettyM = R.Reader PPEnv
+
 pName :: Name -> Doc
 pName = text . map toLower . fromName
 
@@ -32,39 +35,40 @@ pKind TU = text "*T"
 data PPEnv =
   PPENV { ppDefs :: [(Param, Doc)]
         , ppProto :: [Protocol]
-        , ppCache :: M.Map TyProto Name
+        , ppCache :: M.Map (Direction, Name, [TyProto]) Name
         , ppGen   :: Integer
         }
-
---pushDef :: Param -> Doc -> PPEnv -> PPEnv
---pushDef n d ppenv = ppenv { ppDefs = (n, d) : ppDefs ppenv }
 
 pushDefs :: [Param] -> [Doc] -> PPEnv -> PPEnv
 pushDefs ns ds ppenv = ppenv { ppDefs = zip ns ds ++ ppDefs ppenv }
 
-lookupCache :: TyProto -> R.Reader PPEnv (Maybe Name)
-lookupCache t = pure (M.lookup t) <*> fmap ppCache R.ask
+lookupCache :: Direction -> Name -> [TyProto] -> PrettyM (Maybe Name)
+lookupCache dir name args = R.asks $ M.lookup (dir, name, args) . ppCache
 
-pushCache :: TyProto -> Name -> PPEnv -> PPEnv
-pushCache t n ppenv = ppenv { ppCache = M.insert t n (ppCache ppenv)}
+pushCache :: Direction -> Name -> [TyProto] -> Name -> PPEnv -> PPEnv
+pushCache dir name args recVar ppenv =
+  ppenv{ ppCache = M.insert (dir, name, args) recVar (ppCache ppenv) }
 
 incGen :: PPEnv -> PPEnv
 incGen ppenv = ppenv { ppGen = 1 + ppGen ppenv }
 
-askGen ::  R.Reader PPEnv Integer
+askGen ::  PrettyM Integer
 askGen = fmap ppGen R.ask
 
-askDefs :: R.Reader PPEnv [(Param, Doc)]
+askDefs :: PrettyM [(Param, Doc)]
 askDefs = fmap ppDefs R.ask
 
-askProtocols :: R.Reader PPEnv [Protocol]
-askProtocols = fmap ppProto R.ask
+lookupProtocol :: Name -> PrettyM Protocol
+lookupProtocol pn = R.asks \env ->
+  case filter ((pn ==) . prName) (ppProto env) of
+    [] -> error $ "Bad protocol name `" ++ fromName pn ++ "`"
+    p : _ -> p
 
 prettyChoice :: Direction -> Doc
 prettyChoice Input = text "&"
 prettyChoice Output = text "+"
 
-prettySession :: TySession -> R.Reader PPEnv Doc
+prettySession :: TySession -> PrettyM Doc
 prettySession = \case
   SeVar n -> do
     defs <- askDefs
@@ -83,7 +87,7 @@ prettySession = \case
     pure $ parens (text "dualof" <+> pb)
     
 
-prettyType :: Type -> R.Reader PPEnv Doc
+prettyType :: Type -> PrettyM Doc
 prettyType = \case
   TyVar n _ -> do
     defs <- askDefs
@@ -108,11 +112,11 @@ prettyType = \case
     pure $ parens (pf <+> comma <+> ps)
   TyPoly n k b -> do
     pb <- prettyType b
-    pure $ parens (text "forall" <+> pParam n <+> colon <+> pKind k <+> dot <+> pb)
+    pure $ parens (text "forall" <+> pParam n <+> colon <+> pKind k <> dot <+> pb)
   TySession s ->
     prettySession s
 
-prettyAsProtocol :: Direction -> TyProto -> R.Reader PPEnv Doc
+prettyAsProtocol :: Direction -> TyProto -> PrettyM Doc
 prettyAsProtocol d = \case
   TyApp n args ->
     prettyProtocol d n args
@@ -124,65 +128,60 @@ prettyAsProtocol d = \case
     pt <- prettyType t
     pure $ parens (pPrint d <> pt)
 
-prettyProtocol :: Direction -> Name -> [ TyProto ] -> R.Reader PPEnv Doc
+prettyProtocol :: Direction -> Name -> [ TyProto ] -> PrettyM Doc
 prettyProtocol d pn ts = do
-  mn <- lookupCache (TyApp pn ts)
+  mn <- lookupCache d pn ts
   case mn of
-    Just png ->
-      pure $ pName png
+    Just recVar -> pure $ pName recVar
     Nothing -> do
-      ps <- askProtocols
-      case lookup pn (map namedProtocol ps) of
-        Nothing ->
-          pure $ text "Skip" <+> braces (text ("- BAD PROTOCOL NAME " ++ fromName pn ++ " -"))
-        Just protocol -> do
-          -- instantiate the constructors
-          let ctors = subst (zip (prParameters protocol) ts) (prCtors protocol)
-          pts <- mapM (prettyAsProtocol d) ts
-          g <- askGen
-          let png = Name (fromName pn ++ show g)
-              localize mkctor = R.local incGen $
-                                R.local (pushCache (TyApp pn ts) png) $
-                                R.local (pushDefs (prParameters protocol) pts) mkctor
-          case ctors of
-            [oneCtor] -> do
-              pctor <- localize (prettyOneConstructor d oneCtor)
-              pure (text "rec" <+> pName png <+> colon <+> pKind SL <+> dot <+> pctor)
-            manyCtors -> do
-              pcts <- localize (mapM (prettyConstructor d) manyCtors)
-              pure (text "rec" <+> pName png <+> colon <+> pKind SL <+> dot <+>
-                    prettyChoice d <+> braces (sep $ punctuate comma pcts))
+      -- We need to know the protocol's constructors.
+      protocol <- lookupProtocol pn
+      -- Instantiate the constructors.
+      let ctors = subst (zip (prParameters protocol) ts) (prCtors protocol)
+      pts <- mapM (prettyAsProtocol d) ts
+      g <- askGen
+      let png = Name (fromName pn ++ show g)
+          localize mkctor = R.local incGen $
+                            R.local (pushCache d pn ts png) $
+                            R.local (pushDefs (prParameters protocol) pts) mkctor
+      let recVar = "rec" <+> pName png <+> colon <+> pKind SL <> dot
+      parens <$> case ctors of
+        [oneCtor] -> do
+          pctor <- localize (prettyOneConstructor d oneCtor)
+          pure $ recVar <+> pctor
+        manyCtors -> do
+          pcts <- localize (mapM (prettyConstructor d) manyCtors)
+          pure $ recVar <+> prettyChoice d <> braces (sep $ punctuate comma pcts)
 
-prettyConstructor :: Direction -> Constructor -> R.Reader PPEnv Doc
+prettyConstructor :: Direction -> Constructor -> PrettyM Doc
 prettyConstructor d ctor = do
-  pargs <- mapM (prettyArgument d) (ctArgs ctor)
-  let combine parg prest = parg <+> semi <+> prest
-  pure (pPrint (ctName ctor) <+> colon <+> foldr combine (text "Skip") pargs)
+  steps <- prettyOneConstructor d ctor
+  pure $ pPrint (ctName ctor) <> colon <+> steps
 
-prettyOneConstructor :: Direction -> Constructor -> R.Reader PPEnv Doc
+prettyOneConstructor :: Direction -> Constructor -> PrettyM Doc
 prettyOneConstructor d ctor = do
   pargs <- mapM (prettyArgument d) (ctArgs ctor)
   let combine parg prest = parg <+> semi <+> prest
   pure (foldl combine (text "Skip") pargs)
 
-prettyArgument :: Direction -> Argument -> R.Reader PPEnv Doc
+prettyArgument :: Direction -> Argument -> PrettyM Doc
 prettyArgument d arg = do
   let d' = case argPolarity arg of
         Plus -> d
         Minus -> dualDirection d
   prettyAsProtocol d' (argType arg)
 
-prettyBenchmark :: Two Type -> R.Reader PPEnv Doc
+prettyBenchmark :: Two Type -> PrettyM Doc
 prettyBenchmark (Two t u) = do
   pt <- prettyType t
   pu <- prettyType u
   pure $ pt $$ pu
 
-prettyModule :: Module -> R.Reader PPEnv Doc
+prettyModule :: Module -> PrettyM Doc
 prettyModule (Module ps ts) = do
   pts <- R.local (\ ppenv -> ppenv { ppProto = ps }) do
     mapM prettyBenchmark ts
-  pure $ vcat (punctuate nl pts)
+  pure $ vcat (punctuate nl pts) <> nl
 
-runPretty :: R.Reader PPEnv Doc -> Doc
+runPretty :: PrettyM Doc -> Doc
 runPretty = flip R.runReader (PPENV [] [] M.empty 0)
