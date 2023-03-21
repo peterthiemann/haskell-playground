@@ -137,9 +137,9 @@ instance SizeOf Type where
     TyVar _ _ -> 1
     TyUnit -> 1
     TyBase _n -> 1
-    TyLolli t1 t2 -> 1 + (sizeOf t1) + (sizeOf t2)
-    TyArrow t1 t2 -> 1 + (sizeOf t1) + (sizeOf t2)
-    TyPair  t1 t2 -> 1 + (sizeOf t1) + (sizeOf t2)
+    TyLolli t1 t2 -> 1 + sizeOf t1 + sizeOf t2
+    TyArrow t1 t2 -> 1 + sizeOf t1 + sizeOf t2
+    TyPair  t1 t2 -> 1 + sizeOf t1 + sizeOf t2
     TyPoly _parm _k ty -> 1 + sizeOf ty
     TySession ts -> sizeOf ts
 
@@ -157,8 +157,25 @@ instance SizeOf TyProto where
   sizeOf = \case
     TyType ty -> sizeOf ty
     TyPVar _pv -> 1
-    TyNeg ty -> 1 + (sizeOf ty)
-    TyApp _pn pargs -> foldr ((+) . sizeOf) 1 pargs
+    TyNeg ty -> 1 + sizeOf ty
+    TyApp _pn pargs -> 1 + sizeOf pargs
+
+instance SizeOf t => SizeOf [t] where
+  sizeOf xs = foldr ((+) . sizeOf) 0 xs
+
+instance SizeOf Constructor where
+  sizeOf = \case
+    Constructor _n args -> 1 + sizeOf args
+
+instance SizeOf Argument where
+  sizeOf = \case
+    Argument _p tp -> 1 + sizeOf tp
+
+instance SizeOf Protocol where
+  sizeOf p = 1 + sizeOf (prParameters p) + sizeOf (prCtors p)
+
+instance SizeOf Param where
+  sizeOf _ = 1
 
 ----------------------------------------------------------------------
 -- substitution
