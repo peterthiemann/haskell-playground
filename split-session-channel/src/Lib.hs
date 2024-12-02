@@ -1,44 +1,44 @@
 module Lib
-    ( create, receive, send, split, drop
+    ( create, receive, send, split, Lib.drop, close, Session
     ) where
 
-import Control.Concurrent
+import Control.Concurrent (MVar, readMVar, takeMVar, newEmptyMVar, newMVar, putMVar)
 import Data.IORef
+
+-- * API of FreeST style synchronous channels
 
 data PrimitiveChan a =
   PrimitiveChan { payload :: MVar a, sync :: MVar () }
 
-data ChannelState a
-  = Active { now :: MVar (PrimitiveChan a), next :: MVar (PrimitiveChan a) }
-  | Dropped
-  | Closed
-
-type Chan a = IORef (ChannelState a)
-
--- * API of FreeST style synchronous channels
-
 createPrim :: IO (PrimitiveChan a)
 createPrim = do
-  payload <- newEmptyMVar
-  sync <- newEmptyMVar
-  return $ PrimitiveChan payload sync
+  m_payload <- newEmptyMVar
+  m_sync <- newEmptyMVar
+  return $ PrimitiveChan m_payload m_sync
+  
+sendPrim :: a -> PrimitiveChan a -> IO ()
+sendPrim a c = do
+  putMVar (payload c) a
+  takeMVar (sync c)
 
 receivePrim :: PrimitiveChan a -> IO a
 receivePrim pc = do
   a <- takeMVar (payload pc)
   putMVar (sync pc) ()
   return a
-  
-
-sendPrim :: a -> PrimitiveChan a -> IO ()
-sendPrim a c = do
-  putMVar (payload c) a
-  takeMVar (sync c)
-  return ()
 
 -- * API with channel splitting
 
-unwrap :: Chan a -> String -> (MVar (PrimitiveChan a) -> MVar (PrimitiveChan a) -> IO b) -> IO b
+data SessionState a
+  = Active {-now-}  (MVar (PrimitiveChan a))
+           {-next-} (MVar (PrimitiveChan a))
+  | Dropped
+  | Closed
+
+type Session a = IORef (SessionState a)
+
+
+unwrap :: Session a -> String -> (MVar (PrimitiveChan a) -> MVar (PrimitiveChan a) -> IO b) -> IO b
 unwrap c msg action = do
   cs <- readIORef c
   case cs of
@@ -49,29 +49,33 @@ unwrap c msg action = do
     Closed ->
       error ("trying to " ++ msg ++ " on closed channel")
 
--- |Create a new channel in active state 
-create :: IO (Chan a)
+-- | Create a new channel represented by two channel endpoints in active state 
+create :: IO (Session a, Session a)
 create = do
   pc <- createPrim
-  now <- newMVar pc
-  next <- newEmptyMVar
-  newIORef (Active now next)
+  now1 <- newMVar pc
+  next1 <- newEmptyMVar
+  chan1 <- newIORef (Active now1 next1)
+  now2 <- newMVar pc
+  next2 <- newEmptyMVar
+  chan2 <- newIORef (Active now2 next2)
+  return (chan1, chan2)
 
-receive :: Chan a -> IO a
+receive :: Session a -> IO a
 receive c = 
-  unwrap c "receive" $ \ now next -> do
+  unwrap c "receive" $ \ now _next -> do
     pc <- readMVar now
     receivePrim pc
 
-send :: a -> Chan a -> IO ()
+send :: a -> Session a -> IO ()
 send a c =
-  unwrap c "send" $ \ now next -> do
+  unwrap c "send" $ \ now _next -> do
     pc <- readMVar now
     sendPrim a pc
 
--- |Split a channel by returning its borrow.
+-- | Split a channel by returning its borrow.
 --  Splitting suspends the argument channel until it is released by the borrow
-split :: Chan a -> IO (Chan a)
+split :: Session a -> IO (Session a)
 split c =
   unwrap c "split" $ \ now next -> do
     link <- newEmptyMVar
@@ -79,16 +83,17 @@ split c =
     writeIORef c (Active link next)
     return borrow
 
--- |Drop a channel. Usually applied to a borrow to return possession to the original owner.
-drop :: Chan a -> IO ()
+-- | Drop a channel. Usually applied to a borrow to return possession to the original owner.
+drop :: Session a -> IO ()
 drop c =
   unwrap c "drop" $ \ now next -> do
     pc <- takeMVar now
     putMVar next pc
     writeIORef c Dropped
 
--- |Close a channel. Not strictly necessary, but may free some resources.
-close :: Chan a -> IO ()
-  unwrap c "close " $ \ now next -> do
+-- | Close a channel. Not strictly necessary, but may free some resources.
+close :: Session a -> IO ()
+close c =
+  unwrap c "close " $ \ now _next -> do
     _ <- takeMVar now
     writeIORef c Closed
