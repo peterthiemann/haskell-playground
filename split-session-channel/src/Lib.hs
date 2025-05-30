@@ -1,5 +1,6 @@
 module Lib
-    ( create, receive, send, split, Lib.drop, close, Session
+    ( create, receive, send, split, Lib.drop, close, Session,
+      createPrim, receivePrim, sendPrim
     ) where
 
 import Control.Concurrent (MVar, readMVar, takeMVar, newEmptyMVar, newMVar, putMVar, modifyMVar)
@@ -49,13 +50,13 @@ data SessionState a
 modify :: Session a -> (SessionState a -> IO (SessionState a, b)) -> IO b
 newSession :: MVar (PrimitiveChan a) -> MVar (PrimitiveChan a) -> IO (Session a)
 
-type Session a = IORef (SessionState a)
-modify = modifyIORef
-newSession now next = newIORef $ Active now next
+-- type Session a = IORef (SessionState a)
+-- modify = modifyIORef
+-- newSession now next = newIORef $ Active now next
 
--- type Session a = MVar (SessionState a)
--- modify = modifyMVar
--- newSession now next = newMVar $ Active now next
+type Session a = MVar (SessionState a)
+modify = modifyMVar
+newSession now next = newMVar $ Active now next
 
 unwrap :: Session a -> String -> (MVar (PrimitiveChan a) -> MVar (PrimitiveChan a) -> IO (SessionState a, b)) -> IO b
 unwrap s msg action = do

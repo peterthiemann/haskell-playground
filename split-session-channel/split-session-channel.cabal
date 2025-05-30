@@ -40,6 +40,8 @@ library
 executable split-session-channel-exe
   main-is: Main.hs
   other-modules:
+      Benchme
+      StressTest
       Paths_split_session_channel
   autogen-modules:
       Paths_split_session_channel
