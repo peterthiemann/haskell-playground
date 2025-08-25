@@ -46,6 +46,7 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - split-session-channel
+    - criterion
 
 tests:
   split-session-channel-test:

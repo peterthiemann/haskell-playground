@@ -1,21 +1,30 @@
 module Main (main) where
 
+import Criterion.Main
 import System.Environment (getArgs)
-import Benchme (bench, onerunLib, onerunPrim, onerunSplit)
+import qualified Benchme as B
 
 repeats :: Int
 repeats = 200
 
-main :: IO ()
-main = do
+main_orig :: IO ()
+main_orig = do
   args <- getArgs
   case args of
     ["Cell"] ->
-      bench onerunLib repeats
+      B.bench B.onerunLib repeats
     ["Split"] ->
-      bench onerunSplit repeats
+      B.bench B.onerunSplit repeats
     ["Prim"] ->
-      bench onerunPrim repeats
+      B.bench B.onerunPrim repeats
     _ ->
-      putStrLn ("Usage: argument `Cell` selects cell-based implementation, `Prim` selects primitive implementation of channels")
+      putStrLn ("Usage: argument `Cell` selects cell-based implementation thread local, `Split` selects cell-based implementation with splits at each operations, `Prim` selects primitive implementation of channels")
+
+-- Our benchmark harness.
+main = defaultMain [
+  bgroup "channels" [ bench "Prim"  $ whnfIO (B.bench B.onerunPrim repeats)
+               , bench "Splt"  $ whnfIO (B.bench B.onerunSplit repeats)
+               , bench "Cell"  $ whnfIO (B.bench B.onerunLib repeats)
+               ]
+  ]
 

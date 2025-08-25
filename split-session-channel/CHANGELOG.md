@@ -8,4 +8,6 @@ and this project adheres to the
 
 ## Unreleased
 
-## 0.1.0.0 - YYYY-MM-DD
+Converted to use the criterion benchmarking framework.
+
+## 0.1.0.0 - 2025-08-18
